@@ -11,3 +11,16 @@ Initial Idea:
   sequence generation. 
   
   We'll start with a single population from the 1000 Genomes Project.
+  
+  __________________________________________________________________________________________________________________________________________________________________
+  
+  Resources: 
+  
+  https://github.com/openai/blocksparse:
+    
+    pip install blocksparse
+    
+  https://github.com/openai/sparse_attention/blob/master/attention.py
+
+  https://github.com/openai/distribution_augmentation
+
