@@ -23,4 +23,8 @@ Initial Idea:
   https://github.com/openai/sparse_attention/blob/master/attention.py
 
   https://github.com/openai/distribution_augmentation
+  
+  Disclaimer: 
+  All files in the "1000G_real_genomes" directory were taken directly from the code corresponding to this paper:
+  https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1009303
 
