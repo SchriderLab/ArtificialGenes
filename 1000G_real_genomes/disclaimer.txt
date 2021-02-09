@@ -1,0 +1,1 @@
+Disclaimer: All files in the "1000G_real_genomes" directory were directly taken from the code corresponding to this paper: https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1009303
