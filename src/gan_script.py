@@ -17,7 +17,7 @@ plt.switch_backend('agg')
 from tensorflow.keras import regularizers
 from sklearn.decomposition import PCA
 
-inpt = "1000G_real_genomes/805_SNP_1000G_real.hapt" #hapt format input file
+inpt = "../1000G_real_genomes/805_SNP_1000G_real.hapt" #hapt format input file
 latent_size = 600 #size of noise input
 alph = 0.01 #alpha value for LeakyReLU
 g_learn = 0.0001 #generator learning rate
