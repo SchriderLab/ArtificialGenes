@@ -32,6 +32,7 @@ def parse_args():
     parser.add_argument("--odir", default="../output")
     parser.add_argument("--plot", action="store_true")
     parser.add_argument("--gpu_count", default="0")
+    parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
 
