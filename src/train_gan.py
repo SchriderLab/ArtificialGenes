@@ -7,8 +7,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 plt.switch_backend('agg')
-from tensorflow.keras import regularizers
-from sklearn.decomposition import PCA
 
 import torch
 import torch.nn as nn
