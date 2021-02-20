@@ -1,20 +1,3 @@
-# import sys
-# import numpy as np
-# import tensorflow.keras as keras
-# import tensorflow.keras.backend as K
-# from tensorflow.keras.layers import Input, Dense, Activation, LeakyReLU, BatchNormalization
-# from tensorflow.keras.models import Sequential
-# from tensorflow.keras.optimizers import Adam
-# from sklearn.model_selection import train_test_split
-# import matplotlib.pyplot as plt
-# import pandas as pd
-# from tensorflow.keras.models import load_model
-# from tensorflow.keras.models import save_model
-# from tensorflow.keras.models import model_from_json
-# from tensorflow.keras import regularizers
-# from sklearn.decomposition import PCA
-
-import torch
 import torch.nn as nn
 
 # in the process of converting everything to pytorch (way easier)

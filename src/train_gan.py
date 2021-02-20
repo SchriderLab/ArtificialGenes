@@ -12,7 +12,7 @@ from sklearn.decomposition import PCA
 
 import torch
 import torch.nn as nn
-from gan import Generator, Discriminator, GAN
+from gan import Generator, Discriminator
 from torch.autograd import Variable
 
 # in the process of converting everything to pytorch (way easier)
@@ -26,7 +26,6 @@ epochs = 10001
 batch_size = 32
 ag_size = 216  # number of artificial genomes (haplotypes) to be created
 gpu_count = 0
-lr = 1e-3
 use_cuda = False
 # gpu_count = 2 #number of GPUs
 save_that = 1000  # epoch interval for saving outputs
@@ -59,23 +58,14 @@ discriminator = Discriminator(df_noname, negative_slope)
 # if gpu_count > 1:
 #     discriminator = multi_gpu_model(discriminator, gpus=gpu_count)
 
-# Set discriminator to non-trainable
-discriminator.eval()
-
-# Make GAN
-gan = GAN(generator, discriminator)
-
-# if gpu_count > 1:
-#     gan = multi_gpu_model(gan, gpus=gpu_count)
-
 X_real = df_noname.values
 
 losses = []
 batches = len(X_real) // batch_size
 
 loss_fn = nn.BCELoss()
-gen_optimizer = torch.optim.Adam(generator.parameters(), lr=lr)
-disc_optimizer = torch.optim.Adam(discriminator.parameters(), lr=lr)
+gen_optimizer = torch.optim.Adam(generator.parameters(), lr=g_learn)
+disc_optimizer = torch.optim.Adam(discriminator.parameters(), lr=d_learn)
 
 # Training iteration
 for i in range(epochs):
@@ -86,7 +76,7 @@ for i in range(epochs):
         ### going to convert this to dataloader
         # get the batch from real data
         X_batch_real = torch.FloatTensor(X_real[b * batch_size:(b + 1) * batch_size]).to(device)
-        z = torch.rand(size=(batch_size, latent_size)).to(device)
+        z = torch.normal(0, 1, size=(batch_size, latent_size)).to(device)
         X_batch_fake = generator(z).detach().to(device)  # create batch from generator using noise as input
 
         ### ----------------------------------------------------------------- ###
@@ -96,7 +86,7 @@ for i in range(epochs):
         disc_optimizer.zero_grad()
         generator.eval()
         real_preds = discriminator(X_batch_real)
-        disc_loss = loss_fn(real_preds, ones - torch.rand(size=(ones.shape[0], ones.shape[1])))
+        disc_loss = loss_fn(real_preds, ones - torch.FloatTensor(ones.shape[0], ones.shape[1]).uniform_(0, 0.1))
         fake_preds = discriminator(X_batch_fake)
         disc_loss += loss_fn(fake_preds, zeros)
         disc_loss.backward()
@@ -105,10 +95,10 @@ for i in range(epochs):
         ### ----------------------------------------------------------------- ###
         #                           train generator                           #
         ### ----------------------------------------------------------------- ###
-        discriminator.eval()
         generator.train()
         gen_optimizer.zero_grad()
-        z = torch.rand(size=(batch_size, latent_size)).to(device)
+        discriminator.eval()
+        z = torch.normal(0, 1, size=(batch_size, latent_size)).to(device)
         X_batch_fake = generator(z)
         y_pred = discriminator(X_batch_fake)
         gen_loss = loss_fn(y_pred, ones)
