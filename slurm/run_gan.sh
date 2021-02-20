@@ -15,4 +15,4 @@
 
 unset OMP_NUM_THREADS
 
-python3 ../src/gan_script.py
+python3 ../src/train_gan.py
