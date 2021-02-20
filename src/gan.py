@@ -21,7 +21,7 @@ import torch.nn as nn
 
 
 class Generator(nn.Module):
-    def __init_(self, data, latent_size, negative_slope):
+    def __init__(self, data, latent_size, negative_slope):
         super(Generator, self).__init__()
         self.negative_slope = negative_slope
         self.layers = nn.Sequential(
@@ -29,7 +29,7 @@ class Generator(nn.Module):
             nn.LeakyReLU(negative_slope=self.negative_slope),
             nn.Linear(in_features=int(data.shape[1]//1.2), out_features=int(data.shape[1]//1.1)),
             nn.LeakyReLU(negative_slope=self.negative_slope),
-            nn.Linear(in_features=int(data.shape[1]//1.1), out_featues=data.shape[1]),
+            nn.Linear(in_features=int(data.shape[1]//1.1), out_features=data.shape[1]),
             nn.Tanh()
         )
 
@@ -37,7 +37,7 @@ class Generator(nn.Module):
         return self.layers(x)
 
 class Discriminator(nn.Module):
-    def __init_(self, data, negative_slope):
+    def __init__(self, data, negative_slope):
         super(Discriminator, self).__init__()
         self.negative_slope = negative_slope
         self.layers = nn.Sequential(
@@ -54,8 +54,8 @@ class Discriminator(nn.Module):
 
 
 class GAN(nn.Module):
-    def __init_(self, generator, discriminator):
-        super(Generator, self).__init__()
+    def __init__(self, generator, discriminator):
+        super(GAN, self).__init__()
         self.generator = generator
         self.discriminator = discriminator
 
