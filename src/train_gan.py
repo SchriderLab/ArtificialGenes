@@ -35,10 +35,16 @@ def parse_args():
 
     args = parser.parse_args()
 
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+        logging.debug("running in verbose mode")
+    else:
+        logging.basicConfig(level=logging.INFO)
+
     if args.odir != "None":
         if not os.path.exists(args.odir):
             os.mkdir(args.odir)
-            # logging.debug('root: made output directory {0}'.format(args.odir))
+            logging.debug('root: made output directory {0}'.format(args.odir))
         else:
             os.system('rm -rf {0}'.format(os.path.join(args.odir, '*')))
 
