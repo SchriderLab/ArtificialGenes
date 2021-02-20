@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-import logging
+from collections import deque
 
 plt.switch_backend('agg')
 
@@ -28,17 +28,16 @@ def parse_args():
     parser.add_argument("--save_freq", default="0", help="save model every save_freq epochs") # zero means don't save
     parser.add_argument("--batch_size", default="32")
     parser.add_argument("--ifile", default="../1000G_real_genomes/805_SNP_1000G_real.hapt")
-    parser.add_argument("--odir", default="output")
+    parser.add_argument("--odir", default="../output")
     parser.add_argument("--plot", action="store_true")
     parser.add_argument("--gpu_count", default="0")
-    parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
 
     if args.odir != "None":
         if not os.path.exists(args.odir):
             os.mkdir(args.odir)
-            logging.debug('root: made output directory {0}'.format(args.odir))
+            # logging.debug('root: made output directory {0}'.format(args.odir))
         else:
             os.system('rm -rf {0}'.format(os.path.join(args.odir, '*')))
 
@@ -48,6 +47,66 @@ def parse_args():
 def save_models(gen, disc, save_gen_path, save_disc_path):
     torch.save(gen.state_dict(), save_gen_path)
     torch.save(disc.state_dict(), save_disc_path)
+
+
+def plot_losses(odir, losses, i):
+    fig, ax = plt.subplots()
+    plt.plot(np.array([losses]).T[0], label='Discriminator')
+    plt.plot(np.array([losses]).T[1], label='Generator')
+    plt.title("Training Losses")
+    plt.legend()
+    fig.savefig(os.path.join(odir, str(i) + '_loss.pdf'), format='pdf')
+
+
+def plot_pca(df, generated_genomes_df, odir, i):
+    df_pca = df.drop(df.columns[1], axis=1)
+    df_pca.columns = list(range(df_pca.shape[1]))
+    df_pca.iloc[:, 0] = 'Real'
+    generated_genomes_pca = generated_genomes_df.drop(generated_genomes_df.columns[1], axis=1)
+    generated_genomes_pca.columns = list(range(df_pca.shape[1]))
+    df_all_pca = pd.concat([df_pca, generated_genomes_pca])
+    pca = PCA(n_components=2)
+    PCs = pca.fit_transform(df_all_pca.drop(df_all_pca.columns[0], axis=1))
+    PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
+    PCs_df['Pop'] = list(df_all_pca[0])
+    fig = plt.figure(figsize=(10, 10))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_xlabel('PC1')
+    ax.set_ylabel('PC2')
+    pops = ['Real', 'AG']
+    colors = ['r', 'b']
+    for pop, color in zip(pops, colors):
+        ix = PCs_df['Pop'] == pop
+        ax.scatter(PCs_df.loc[ix, 'PC1']
+                   , PCs_df.loc[ix, 'PC2']
+                   , c=color
+                   , s=50, alpha=0.2)
+    ax.legend(pops)
+    fig.savefig(os.path.join(odir, str(i) + '_pca.pdf'), format='pdf')
+
+
+def create_AGs(generator, i, ag_size, latent_size, df, odir):
+    z = torch.normal(0, 1, size=(ag_size, latent_size))
+    generator.eval()
+    generated_genomes = generator(z).detach().numpy()
+    generated_genomes[generated_genomes < 0] = 0
+    generated_genomes = np.rint(generated_genomes)
+    generated_genomes_df = pd.DataFrame(generated_genomes)
+    generated_genomes_df = generated_genomes_df.astype(int)
+    gen_names = list()
+    for j in range(0, len(generated_genomes_df)):
+        gen_names.append('AG' + str(i))
+    generated_genomes_df.insert(loc=0, column='Type', value="AG")
+    generated_genomes_df.insert(loc=1, column='ID', value=gen_names)
+    generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
+    df.columns = list(range(df.shape[1]))
+
+    # Output AGs in hapt format
+    generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
+
+    # Output losses
+    # pd.DataFrame(losses).to_csv(os.path.join(odir, str(i) + "_losses.txt"), sep=" ", header=False, index=False)
+    return generated_genomes_df
 
 
 def main():
@@ -87,6 +146,7 @@ def main():
 
     X_real = df_noname.values
 
+    # losses = deque(maxlen=1000)
     losses = []
     batches = len(X_real) // batch_size
 
@@ -135,67 +195,19 @@ def main():
         losses.append((disc_loss.item(), gen_loss.item()))
         print("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, disc_loss.item(), gen_loss.item()))
 
-        if save_freq != 0 and (i % save_freq == 0 or i == epochs):
+        if save_freq != 0 and (i % save_freq == 1 or i == epochs):
             # Save models
-            save_models(generator, discriminator, os.path.join(odir, "generator_model"),
-                        os.path.join(odir, "discriminator_model"))
+            save_models(generator, discriminator, os.path.join(odir, "generator_model.pt"),
+                        os.path.join(odir, "discriminator_model.pt"))
 
             if ag_size > 0:
                 # Create AGs
-                z = torch.normal(0, 1, size=(ag_size, latent_size))
-                generator.eval()
-                generated_genomes = generator(z).numpy()
-                generated_genomes[generated_genomes < 0] = 0
-                generated_genomes = np.rint(generated_genomes)
-                generated_genomes_df = pd.DataFrame(generated_genomes)
-                generated_genomes_df = generated_genomes_df.astype(int)
-                gen_names = list()
-                for j in range(0, len(generated_genomes_df)):
-                    gen_names.append('AG' + str(i))
-                generated_genomes_df.insert(loc=0, column='Type', value="AG")
-                generated_genomes_df.insert(loc=1, column='ID', value=gen_names)
-                generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
-                df.columns = list(range(df.shape[1]))
-
-                # Output AGs in hapt format
-                generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
-
-                # Output losses
-                pd.DataFrame(losses).to_csv(os.path.join(odir, str(i) + "_losses.txt"), sep=" ", header=False, index=False)
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
 
                 if args.plot:
-                    fig, ax = plt.subplots()
-                    plt.plot(np.array([losses]).T[0], label='Discriminator')
-                    plt.plot(np.array([losses]).T[1], label='Generator')
-                    plt.title("Training Losses")
-                    plt.legend()
-                    fig.savefig(os.path.join(odir, str(i) + '_loss.pdf'), format='pdf')
+                    plot_losses(odir, losses, i)
 
-                    # Make PCA
-                    df_pca = df.drop(df.columns[1], axis=1)
-                    df_pca.columns = list(range(df_pca.shape[1]))
-                    df_pca.iloc[:, 0] = 'Real'
-                    generated_genomes_pca = generated_genomes_df.drop(generated_genomes_df.columns[1], axis=1)
-                    generated_genomes_pca.columns = list(range(df_pca.shape[1]))
-                    df_all_pca = pd.concat([df_pca, generated_genomes_pca])
-                    pca = PCA(n_components=2)
-                    PCs = pca.fit_transform(df_all_pca.drop(df_all_pca.columns[0], axis=1))
-                    PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
-                    PCs_df['Pop'] = list(df_all_pca[0])
-                    fig = plt.figure(figsize=(10, 10))
-                    ax = fig.add_subplot(1, 1, 1)
-                    ax.set_xlabel('PC1')
-                    ax.set_ylabel('PC2')
-                    pops = ['Real', 'AG']
-                    colors = ['r', 'b']
-                    for pop, color in zip(pops, colors):
-                        ix = PCs_df['Pop'] == pop
-                        ax.scatter(PCs_df.loc[ix, 'PC1']
-                                   , PCs_df.loc[ix, 'PC2']
-                                   , c=color
-                                   , s=50, alpha=0.2)
-                    ax.legend(pops)
-                    fig.savefig(os.path.join(odir, str(i) + '_pca.pdf'), format='pdf')
+                    plot_pca(df, generated_genomes_df, odir, i)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ class Generator(nn.Module):
     def __init__(self, data, latent_size, negative_slope):
         super(Generator, self).__init__()
         self.negative_slope = negative_slope
+        self.data_size = data.shape[1]
         self.layers = nn.Sequential(
             nn.Linear(in_features=latent_size, out_features=int(data.shape[1]//1.2)),
             nn.LeakyReLU(negative_slope=self.negative_slope),
