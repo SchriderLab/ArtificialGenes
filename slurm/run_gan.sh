@@ -15,4 +15,8 @@
 
 unset OMP_NUM_THREADS
 
-python3 ../src/train_gan.py
+# Set SIMG name
+SIMG_NAME=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
+
+echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py
+singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py
