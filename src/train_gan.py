@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+import logging
 from collections import deque
 
 plt.switch_backend('agg')
@@ -193,7 +194,7 @@ def main():
             gen_optimizer.step()
 
         losses.append((disc_loss.item(), gen_loss.item()))
-        print("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, disc_loss.item(), gen_loss.item()))
+        logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, disc_loss.item(), gen_loss.item()))
 
         if save_freq != 0 and (i % save_freq == 1 or i == epochs):
             # Save models
