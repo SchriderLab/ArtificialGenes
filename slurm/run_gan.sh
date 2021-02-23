@@ -18,13 +18,7 @@ unset OMP_NUM_THREADS
 ODIR=$1
 
 if [[ "$2" != "" ]]; then
-    AG_SIZE="$2"
-else
-    AG_SIZE="216"
-fi
-
-if [[ "$3" != "" ]]; then
-    SAVE_FREQ="$3"
+    SAVE_FREQ="$2"
 else
     SAVE_FREQ="0"
 fi
@@ -33,10 +27,10 @@ fi
 # Set SIMG name
 SIMG_NAME=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
 
-if [[ "$4" != "" ]]; then
-    echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --ag_size $AG_SIZE --save_freq $SAVE_FREQ --verbose
-    singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --ag_size $AG_SIZE --save_freq $SAVE_FREQ --verbose
+if [[ "$3" != "" ]]; then
+    echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --verbose
+    singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --verbose
 else
-    echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --ag_size $AG_SIZE --save_freq $SAVE_FREQ --plot --verbose
-    singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --ag_size $AG_SIZE --save_freq $SAVE_FREQ --plot --verbose
-
+    echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --plot --verbose
+    singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --plot --verbose
+fi
