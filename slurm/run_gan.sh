@@ -24,13 +24,13 @@ else
 fi
 
 
-# Set SIMG name
-SIMG_NAME=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
+# Set SIMG path
+SIMG_PATH=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
 
 if [[ "$3" != "" ]]; then
-    echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --verbose
-    singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --verbose
+    echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --verbose
+    singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --verbose
 else
-    echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --plot --verbose
-    singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --plot --verbose
+    echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --plot --verbose
+    singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --plot --verbose
 fi

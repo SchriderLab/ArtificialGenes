@@ -15,10 +15,8 @@
 
 unset OMP_NUM_THREADS
 
-odir=$1
-
 # Set SIMG name
-SIMG_NAME=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
+SIMG_PATH=/nas/longleaf/apps/tensorflow_py3/2.3.1/simg/tensorflow2.3.1-py3-cuda10.1-ubuntu18.04.simg
 
-echo singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/gan_script.py 
-singularity exec --nv -B /pine -B /proj $SIMG_NAME python3 ../src/gan_script.py 
+echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/gan_script.py 
+singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/gan_script.py 
