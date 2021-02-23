@@ -17,7 +17,10 @@ plt.switch_backend('agg')
 from tensorflow.keras import regularizers
 from sklearn.decomposition import PCA
 
+import logging
+
 # in the process of converting everything to pytorch (way easier)
+logging.basicConfig(level=logging.DEBUG)
 
 inpt = "../1000G_real_genomes/805_SNP_1000G_real.hapt" #hapt format input file
 latent_size = 600 #size of noise input
@@ -102,7 +105,9 @@ for e in range(epochs):
         g_loss = gan.train_on_batch(latent_samples, y_real)
 
     losses.append((d_loss, g_loss))
-    print("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f"%(e+1, epochs, d_loss, g_loss))
+    # print("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f"%(e+1, epochs, d_loss, g_loss))
+    logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f"%(e+1, epochs, d_loss, g_loss))
+
     # if e%save_that == 0 or e == epochs:
     #
     #     #Save models
