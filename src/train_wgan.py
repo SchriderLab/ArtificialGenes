@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import argparse
 from gan import Generator, Discriminator
+from torch import autograd
 from torch.autograd import Variable
 from sklearn.decomposition import PCA
 
@@ -20,8 +21,8 @@ def parse_args():
 
     parser.add_argument("--latent_size", default="600", help="size of noise input")
     parser.add_argument("--negative_slope", default="0.01", help="alpha value for LeakyReLU")
-    parser.add_argument("--gen_lr", default="1e-4", help="generator learning rate")
-    parser.add_argument("--disc_lr", default="8e-4", help="discriminator learning rate")
+    parser.add_argument("--gen_lr", default="0.00005", help="generator learning rate")
+    parser.add_argument("--disc_lr", default="0.00005", help="discriminator learning rate")
     parser.add_argument("--epochs", default="10000")
     parser.add_argument("--ag_size", default="216", help="number of artificial genomes (haplotypes) to be created"
                                                          "if 0, then no genomes created")
@@ -30,7 +31,8 @@ def parse_args():
     parser.add_argument("--batch_size", default="64")
     parser.add_argument("--ifile", default="../1000G_real_genomes/805_SNP_1000G_real.hapt")
     parser.add_argument("--odir", default="../output")
-    parser.add_argument("--plot", action="store_true")
+    parser.add_argument("--plot_pca", action="store_true")
+    parser.add_argument("--plot_loss", action="store_true")
     parser.add_argument("--gpu_count", default="0")
     parser.add_argument("--critic_iter", default="5")
     parser.add_argument("--verbose", action="store_true")
@@ -58,13 +60,33 @@ def save_models(gen, disc, save_gen_path, save_disc_path):
     torch.save(disc.state_dict(), save_disc_path)
 
 
-def plot_losses(odir, losses, i):
+def plot_losses(odir, losses):
     fig, ax = plt.subplots()
     plt.plot(np.array([losses]).T[0], label='Discriminator')
     plt.plot(np.array([losses]).T[1], label='Generator')
     plt.title("Training Losses")
     plt.legend()
-    fig.savefig(os.path.join(odir, str(i) + '_loss.pdf'), format='pdf')
+    fig.savefig(os.path.join(odir, 'training_loss.pdf'), format='pdf')
+
+
+# need to debug and test this gradient penalty once we get gradient clipping to work
+def gradient_penalty(discriminator, real_batch, fake_batch, _lambda=10):
+    t = torch.FloatTensor(real_batch.shape[0], 1).uniform_(0,1) # need to make sure shape is correct
+    # t = t.expand(real_batch.shape[0], real_batch.shape[1])
+
+    interpolated = t * real_batch + ((1-t) * fake_batch)
+    # define as variable to calculate gradient
+    interpolated = Variable(interpolated, requires_grad = True)
+
+    # calculate probabilities of interpolated examples
+    prob_interpolated = discriminator(interpolated)
+
+    # calculate gradients
+    gradients = autograd.grad(outputs=prob_interpolated, inputs=interpolated,
+                              grad_outputs=torch.ones(prob_interpolated.size()),
+                              create_graph=True, retain_graph=True)[0]
+    grad_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * _lambda
+    return grad_penalty
 
 
 def plot_pca(df, generated_genomes_df, odir, i):
@@ -135,7 +157,7 @@ def main():
     gpu_count = int(args.gpu_count) # not used atm
     save_freq = int(args.save_freq)
     critic_iter = int(args.critic_iter)
-    weight_cliping_limit = 0.01 # parameter for WGAN-WC
+    weight_clipping_limit = 0.01 # parameter for WGAN-WC
 
 
     device = torch.device('cuda' if use_cuda else 'cpu')
@@ -149,10 +171,10 @@ def main():
     df_noname = pd.DataFrame(df_noname)
 
     # Make generator
-    generator = Generator(df_noname, latent_size, negative_slope)
+    generator = Generator(df_noname, latent_size, negative_slope).to(device) #
 
     # Make discriminator
-    discriminator = Discriminator(df_noname, negative_slope)
+    discriminator = Discriminator(df_noname, negative_slope).to(device) #
 
     # if gpu_count > 1:
     #     discriminator = multi_gpu_model(discriminator, gpus=gpu_count)
@@ -166,21 +188,22 @@ def main():
     disc_optimizer = torch.optim.RMSprop(discriminator.parameters(), lr=d_learn)
     gen_optimizer = torch.optim.RMSprop(generator.parameters(), lr=g_learn)
 
-    one = torch.tensor(1, dtype=torch.float)
+    one = torch.tensor(1, dtype=torch.float).to(device) #
     neg_one = one * -1
+    neg_one = neg_one.to(device)
 
     # Training iteration
     for i in range(epochs):
         wasserstein_d = 0
 
+        for p in discriminator.parameters():
+            p.requires_grad = True
+
         for j, _ in enumerate(range(critic_iter)):
 
             # Clamp parameters to a range [-c, c], c=self.weight_cliping_limit
             for p in discriminator.parameters():
-                p.data.clamp_(weight_cliping_limit, weight_cliping_limit)
-
-            ones = Variable(torch.Tensor(batch_size, 1).fill_(1).type(torch.FloatTensor))
-            zeros = Variable(torch.Tensor(batch_size, 1).fill_(0).type(torch.FloatTensor))
+                p.data.clamp_(-weight_clipping_limit, weight_clipping_limit)
 
             ### ----------------------------------------------------------------- ###
             #                           train critic                                #
@@ -197,10 +220,16 @@ def main():
 
             # train with fake images
             z = Variable(torch.normal(0, 1, size=(batch_size, latent_size))).to(device)
-            X_batch_fake = generator(z).detach().to(device)  # create batch from generator using noise as input
+            X_batch_fake = generator(z).detach().to(device)
             d_loss_fake = discriminator(X_batch_fake)
             d_loss_fake = d_loss_fake.mean()
             d_loss_fake.backward(neg_one)
+
+            # for gradient penalty
+            # gradient_penalty = gradient_penalty(discriminator, X_batch_real, X_batch_fake)
+            # gradient_penalty.backward()
+
+            # # d_loss = d_loss_fake - d_loss_real + gradient_penalty
 
             wasserstein_d += d_loss_real - d_loss_fake
             disc_optimizer.step()
@@ -209,6 +238,8 @@ def main():
         ### ----------------------------------------------------------------- ###
         #                           train generator                           #
         ### ----------------------------------------------------------------- ###
+        for p in discriminator.parameters():
+            p.requires_grad = False
         generator.train()
         gen_optimizer.zero_grad()
         discriminator.eval()
@@ -218,7 +249,7 @@ def main():
         gen_loss = discriminator(X_batch_fake)
         # print(gen_loss)
         # print(gen_loss.mean())
-        gen_loss = gen_loss.mean()
+        gen_loss = gen_loss.mean() # see if you need .mean(0) or something
         gen_loss.backward(one)
         gen_optimizer.step()
 
@@ -234,10 +265,11 @@ def main():
                 # Create AGs
                 generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
 
-                if args.plot:
-                    plot_losses(odir, losses, i)
+            if args.plot_pca:
+                plot_pca(df, generated_genomes_df, odir, i)
 
-                    plot_pca(df, generated_genomes_df, odir, i)
+    if args.plot_loss:
+        plot_losses(odir, losses)
 
 
 if __name__ == "__main__":
