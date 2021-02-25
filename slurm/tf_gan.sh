@@ -16,7 +16,9 @@
 unset OMP_NUM_THREADS
 
 # Set SIMG name
-SIMG_PATH=/nas/longleaf/apps/tensorflow_py3/2.3.1/simg/tensorflow2.3.1-py3-cuda10.1-ubuntu18.04.simg
+SIMG_PATH=/nas/longleaf/apps/tensorflow_py3/2.1.0/simg/tensorflow2.1.0-py3-cuda10.1-ubuntu18.04.simg
+# tf 2.3.1 singularity image gave weird error. Trying 2.1.0 now
+# SIMG_PATH=/nas/longleaf/apps/tensorflow_py3/2.3.1/simg/tensorflow2.3.1-py3-cuda10.1-ubuntu18.04.simg
 
 echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/gan_script.py 
 singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/gan_script.py 
