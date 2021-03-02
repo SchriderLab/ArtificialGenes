@@ -31,8 +31,7 @@ def parse_args():
     parser.add_argument("--batch_size", default="64")
     parser.add_argument("--ifile", default="../1000G_real_genomes/805_SNP_1000G_real.hapt")
     parser.add_argument("--odir", default="../output")
-    parser.add_argument("--plot_pca", action="store_true")
-    parser.add_argument("--plot_loss", action="store_true")
+    parser.add_argument("--plot", action="store_true")
     parser.add_argument("--gpu_count", default="0")
     parser.add_argument("--critic_iter", default="5")
     parser.add_argument("--verbose", action="store_true")
@@ -266,10 +265,10 @@ def main():
                 # Create AGs
                 generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
 
-            if args.plot_pca:
+            if args.plot:
                 plot_pca(df, generated_genomes_df, odir, i)
 
-    if args.plot_loss:
+    if args.plot:
         plot_losses(odir, losses)
 
 
