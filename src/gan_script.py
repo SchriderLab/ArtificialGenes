@@ -10,6 +10,7 @@ from tensorflow.keras.optimizers import Adam
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
 from tensorflow.keras.models import load_model
 from tensorflow.keras.models import save_model
 from tensorflow.keras.models import model_from_json
@@ -33,7 +34,7 @@ ag_size = 216 #number of artificial genomes (haplotypes) to be created
 gpu_count = 0
 # gpu_count = 2 #number of GPUs
 save_that = 500 #epoch interval for saving outputs
-odir = '../tf_gan_output'
+odir = '../outputs/tf_gan_output'
 
 #For saving models
 def save_mod(gan, gen, disc, epo):
