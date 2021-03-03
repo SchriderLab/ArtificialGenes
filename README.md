@@ -2,7 +2,7 @@
 Using generative networks to create sequences of artificial DNA
 
 Steps: 
-  1) Duplicate results of initial paper 
+  1) Duplicate results of initial paper (https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1009303)
   2) Try to generate better samples using Wasserstein GANs
   3) Use controllable and conditional GANs to generate specific types of sequences
      (ex. generate sequences from a specific population or with a certain haplotype)
