@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import logging
 from collections import deque
+from sklearn.utils import shuffle
 
 plt.switch_backend('agg')
 
@@ -148,6 +149,7 @@ def main():
     df_noname = df_noname.values
     df_noname = df_noname - np.random.uniform(0, 0.1, size=(df_noname.shape[0], df_noname.shape[1]))
     df_noname = pd.DataFrame(df_noname)
+    df_noname = shuffle(df_noname)
 
     # Make generator
     generator = Generator(df_noname, latent_size, negative_slope).to(device) #
@@ -173,61 +175,59 @@ def main():
 
     # Training iteration
     for i in range(epochs):
-        wasserstein_d = 0
 
-        for p in discriminator.parameters():
-            p.requires_grad = True
+        for b in range(batches):
 
-        for j, _ in enumerate(range(critic_iter)):
+            wasserstein_d = 0
 
-            # Clamp parameters to a range [-c, c], c=self.weight_cliping_limit
             for p in discriminator.parameters():
-                p.data.clamp_(-weight_clipping_limit, weight_clipping_limit)
+                p.requires_grad = True
+
+            for j, _ in enumerate(range(critic_iter)):
+
+                # Clamp parameters to a range [-c, c], c=self.weight_cliping_limit
+                for p in discriminator.parameters():
+                    p.data.clamp_(-weight_clipping_limit, weight_clipping_limit)
+
+                ### ----------------------------------------------------------------- ###
+                #                           train critic                                #
+                ### ----------------------------------------------------------------- ###
+                disc_optimizer.zero_grad()
+
+                # train with real images
+                X_batch_real = torch.FloatTensor(X_real[b * batch_size:(b + 1) * batch_size]).to(device)
+                d_loss_real = discriminator(X_batch_real)
+                d_loss_real = d_loss_real.mean()
+                d_loss_real.backward(one)
+
+                # train with fake images
+                z = Variable(torch.normal(0, 1, size=(batch_size, latent_size))).to(device)
+                X_batch_fake = generator(z).detach().to(device)
+                d_loss_fake = discriminator(X_batch_fake)
+                d_loss_fake = d_loss_fake.mean()
+                d_loss_fake.backward(neg_one)
+
+                wasserstein_d += d_loss_real.detach() - d_loss_fake.detach()
+                disc_optimizer.step()
+
 
             ### ----------------------------------------------------------------- ###
-            #                           train critic                                #
+            #                           train generator                           #
             ### ----------------------------------------------------------------- ###
-            discriminator.train()
-            disc_optimizer.zero_grad()
-            generator.eval()
+            for p in discriminator.parameters():
+                p.requires_grad = False
+            gen_optimizer.zero_grad()
 
-            # train with real images
-            X_batch_real = torch.FloatTensor(X_real[j * batch_size:(j + 1) * batch_size]).to(device)
-            d_loss_real = discriminator(X_batch_real)
-            d_loss_real = d_loss_real.mean()
-            d_loss_real.backward(one)
-
-            # train with fake images
             z = Variable(torch.normal(0, 1, size=(batch_size, latent_size))).to(device)
-            X_batch_fake = generator(z).detach().to(device)
-            d_loss_fake = discriminator(X_batch_fake)
-            d_loss_fake = d_loss_fake.mean()
-            d_loss_fake.backward(neg_one)
+            X_batch_fake = generator(z)
+            gen_loss = discriminator(X_batch_fake)
+            gen_loss = gen_loss.mean()
+            gen_loss.backward(one)
+            gen_optimizer.step()
 
-            wasserstein_d += d_loss_real - d_loss_fake
-            disc_optimizer.step()
-
-
-        ### ----------------------------------------------------------------- ###
-        #                           train generator                           #
-        ### ----------------------------------------------------------------- ###
-        for p in discriminator.parameters():
-            p.requires_grad = False
-        generator.train()
-        gen_optimizer.zero_grad()
-        discriminator.eval()
-
-        z = Variable(torch.normal(0, 1, size=(batch_size, latent_size))).to(device)
-        X_batch_fake = generator(z)
-        gen_loss = discriminator(X_batch_fake)
-        # print(gen_loss)
-        # print(gen_loss.mean())
-        gen_loss = gen_loss.mean() # see if you need .mean(0) or something
-        gen_loss.backward(one)
-        gen_optimizer.step()
-
-        losses.append((wasserstein_d.mean().item(), gen_loss.item()))
-        logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, wasserstein_d.mean().item(), gen_loss.item()))
+            if b % 20 == 0:
+                losses.append((wasserstein_d.mean().item(), gen_loss.detach().mean().item()))
+                logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, wasserstein_d.mean().item(), gen_loss.mean().item()))
 
         if save_freq != 0 and (i % save_freq == 1 or i == epochs):
             # Save models
