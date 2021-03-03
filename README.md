@@ -1,17 +1,14 @@
 # ArtificialGenes
-Using sparse transformers and other generative models to generate long DNA sequences
+Using generative networks to create sequences of artificial DNA
 
-Initial Idea:
-
-  Building on this paper: Creating Artificial Human Genomes Using Generative Models (https://www.biorxiv.org/content/10.1101/769091v2.full.pdf), we're 
-  trying to use a number of different generative models to generative realistic long DNA sequences. 
-  
-  We're especially interested in the potential
-  of Sparse Transformers, introduced here: https://arxiv.org/abs/1904.10509 which are generative transformer models especially good at long-range 
-  sequence generation. 
-  
-  We'll start with a single population from the 1000 Genomes Project.
-  
+Steps: 
+  1) Duplicate results of initial paper 
+  2) Try to generate better samples using Wasserstein GANs
+  3) Use controllable and conditional GANs to generate specific types of sequences
+     (ex. generate sequences from a specific population or with a certain haplotype)
+  4) Test Sparse Transformers for long sequences of DNA
+     (https://arxiv.org/abs/1904.10509) 
+    
   __________________________________________________________________________________________________________________________________________________________________
   
   Resources: 
@@ -27,4 +24,6 @@ Initial Idea:
   Disclaimer: 
   All files in the "1000G_real_genomes" directory were taken directly from the code corresponding to this paper:
   https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1009303
+
+  Much of the code in this repo was taken from the original paper: Creating Artificial Human Genomes Using Generative Models (https://www.biorxiv.org/content/10.1101/769091v2.full.pdf) 
 
