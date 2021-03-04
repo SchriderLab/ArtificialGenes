@@ -1,0 +1,11 @@
+,stat,statistic,pvalue,label,PC,method
+0,wasserstein,0.0,,Real,1,coupled_PCA
+1,wasserstein,0.0,,Real,2,coupled_PCA
+2,wasserstein,0.744127983569737,,tf_gan,1,coupled_PCA
+3,wasserstein,0.8176148833459647,,tf_gan,2,coupled_PCA
+4,wasserstein,1.7400928989654758,,wgan-gp,1,coupled_PCA
+5,wasserstein,0.5626497673201682,,wgan-gp,2,coupled_PCA
+6,wasserstein,1.9815415598119235,,wgan,1,coupled_PCA
+7,wasserstein,0.6210682176834516,,wgan,2,coupled_PCA
+8,wasserstein,0.8550310747565885,,pytorch_gan,1,coupled_PCA
+9,wasserstein,2.767168353866025,,pytorch_gan,2,coupled_PCA
