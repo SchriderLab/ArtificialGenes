@@ -4,7 +4,6 @@ import pandas as pd
 import os
 import logging
 from collections import deque
-from sklearn.utils import shuffle
 
 plt.switch_backend('agg')
 
@@ -149,7 +148,6 @@ def main():
     df_noname = df_noname.values
     df_noname = df_noname - np.random.uniform(0, 0.1, size=(df_noname.shape[0], df_noname.shape[1]))
     df_noname = pd.DataFrame(df_noname)
-    df_noname = shuffle(df_noname)
 
     # Make generator
     generator = Generator(df_noname, latent_size, negative_slope).to(device) #
