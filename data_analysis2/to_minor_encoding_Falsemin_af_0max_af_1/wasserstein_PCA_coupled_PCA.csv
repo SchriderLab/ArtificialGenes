@@ -1,0 +1,17 @@
+,stat,statistic,pvalue,label,PC,method
+0,wasserstein,0.0,,Real,1,coupled_PCA
+1,wasserstein,0.0,,Real,2,coupled_PCA
+2,wasserstein,1.3215230267438085,,tf_gan2,1,coupled_PCA
+3,wasserstein,0.7836394112081925,,tf_gan2,2,coupled_PCA
+4,wasserstein,0.663971566852908,,wgan-gp3,1,coupled_PCA
+5,wasserstein,0.422430994283707,,wgan-gp3,2,coupled_PCA
+6,wasserstein,1.0185682518826351,,wgan-gp4,1,coupled_PCA
+7,wasserstein,0.8490825859110998,,wgan-gp4,2,coupled_PCA
+8,wasserstein,0.3930335039240113,,wgan3,1,coupled_PCA
+9,wasserstein,0.6375429098776764,,wgan3,2,coupled_PCA
+10,wasserstein,0.883858327157266,,wgan4,1,coupled_PCA
+11,wasserstein,0.6164291576808861,,wgan4,2,coupled_PCA
+12,wasserstein,1.5710376107240462,,pytorch_gan2,1,coupled_PCA
+13,wasserstein,1.762846830022564,,pytorch_gan2,2,coupled_PCA
+14,wasserstein,2.283254841759356,,pytorch_gan3,1,coupled_PCA
+15,wasserstein,3.8585172793221743,,pytorch_gan3,2,coupled_PCA
