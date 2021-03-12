@@ -13,6 +13,8 @@ import argparse
 from gan import Generator, Discriminator
 from torch.autograd import Variable
 from sklearn.decomposition import PCA
+from data_loader import GenomesDataset
+from torch.utils.data import DataLoader
 
 
 def parse_args():
@@ -133,30 +135,30 @@ def main():
     use_cuda = args.use_cuda
     gpu_count = int(args.gpu_count)
     save_freq = int(args.save_freq)
+    data_size = 805
     device = torch.device('cuda' if use_cuda else 'cpu')
 
     # Read input
-    df = pd.read_csv(ifile, sep=' ', header=None)
-    df = df.sample(frac=1).reset_index(drop=True)
-    df_noname = df.drop(df.columns[0:2], axis=1)
-    df_noname = df_noname.values
-    df_noname = df_noname - np.random.uniform(0, 0.1, size=(df_noname.shape[0], df_noname.shape[1]))
-    df_noname = pd.DataFrame(df_noname)
+    genomes_data = GenomesDataset(ifile)
+    dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
+    # dataiter = iter(dataloader)
+    data = pd.read_csv(ifile, sep=' ', header=None)
+    data = data.reset_index(drop=True)
+    data = data.drop(data.columns[0:2], axis=1).values
+    data = data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1]))
 
     # Make generator
-    generator = Generator(df_noname, latent_size, negative_slope)
+    generator = Generator(data_size, latent_size, negative_slope)
 
     # Make discriminator
-    discriminator = Discriminator(df_noname, negative_slope)
+    discriminator = Discriminator(data_size, negative_slope)
 
     # if gpu_count > 1:
     #     discriminator = multi_gpu_model(discriminator, gpus=gpu_count)
 
-    X_real = df_noname.values
-
     # losses = deque(maxlen=1000)
     losses = []
-    batches = len(X_real) // batch_size
+    # batches = len(dataloader)
 
     loss_fn = nn.BCELoss()
     gen_optimizer = torch.optim.Adam(generator.parameters(), lr=g_learn)
@@ -164,15 +166,18 @@ def main():
 
     # Training iteration
     for i in range(epochs):
-        for b in range(batches):
+
+        disc_losses = []
+        gen_losses = []
+
+        for j, X_real in enumerate(dataloader):
+
             ones = Variable(torch.Tensor(batch_size, 1).fill_(1).type(torch.FloatTensor))
             zeros = Variable(torch.Tensor(batch_size, 1).fill_(0).type(torch.FloatTensor))
 
-            ### going to convert this to dataloader
             # get the batch from real data
-            X_batch_real = torch.FloatTensor(X_real[b * batch_size:(b + 1) * batch_size]).to(device)
             z = torch.normal(0, 1, size=(batch_size, latent_size)).to(device)
-            X_batch_fake = generator(z).detach().to(device)  # create batch from generator using noise as input
+            X_fake = generator(z).detach().to(device)  # create batch from generator using noise as input
 
             ### ----------------------------------------------------------------- ###
             #                           train discriminator                       #
@@ -180,9 +185,9 @@ def main():
             discriminator.train()
             disc_optimizer.zero_grad()
             generator.eval()
-            real_preds = discriminator(X_batch_real)
+            real_preds = discriminator(X_real)
             disc_loss = loss_fn(real_preds, ones - torch.FloatTensor(ones.shape[0], ones.shape[1]).uniform_(0, 0.1))
-            fake_preds = discriminator(X_batch_fake)
+            fake_preds = discriminator(X_fake)
             disc_loss += loss_fn(fake_preds, zeros)
             disc_loss.backward()
             disc_optimizer.step()
@@ -200,8 +205,10 @@ def main():
             gen_loss.backward()
             gen_optimizer.step()
 
-        losses.append((disc_loss.item(), gen_loss.item()))
-        logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, disc_loss.item(), gen_loss.item()))
+            losses.append((disc_loss.item(), gen_loss.item()))
+            gen_losses.append(gen_loss.item())
+            disc_losses.append(disc_loss.item())
+        logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, np.mean(disc_losses), np.mean(gen_losses)))
 
         if save_freq != 0 and (i % save_freq == 1 or i == epochs):
             # Save models
@@ -210,12 +217,12 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, data, odir)
 
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(df, generated_genomes_df, odir, i)
+                    plot_pca(data, generated_genomes_df, odir, i)
 
 
 if __name__ == "__main__":
