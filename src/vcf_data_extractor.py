@@ -11,7 +11,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--ifile", default="/datacommons/1000genomes/ALL.chr14.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf")
-    parser.add_argument("--keyfile", default="integrated_call_samples_v3.20130502.ALL.panel", help="File specifying what labels in vcf you want to extract")
+    parser.add_argument("--popfile", default="integrated_call_samples_v3.20130502.ALL.panel", help="Files mapping individuals IDs with their respective populations")
     parser.add_argument("--population", default="YRI", help="What population you want to extract")
     parser.add_argument("--break_point", default="None", help="how many samples you want to pull before ending")
     parser.add_argument("--extract_frequency", default="100000")
