@@ -106,8 +106,8 @@ def create_AGs(generator, i, ag_size, latent_size, df, odir):
     gen_names = list()
     for j in range(0, len(generated_genomes_df)):
         gen_names.append('AG' + str(i))
-    generated_genomes_df.insert(loc=0, column='Type', value="AG")
-    generated_genomes_df.insert(loc=1, column='ID', value=gen_names)
+    # generated_genomes_df.insert(loc=0, column='Type', value="AG")
+    # generated_genomes_df.insert(loc=1, column='ID', value=gen_names)
     generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
     df.columns = list(range(df.shape[1]))
 
@@ -135,17 +135,25 @@ def main():
     use_cuda = args.use_cuda
     gpu_count = int(args.gpu_count)
     save_freq = int(args.save_freq)
-    data_size = 805
     device = torch.device('cuda' if use_cuda else 'cpu')
 
     # Read input
     genomes_data = GenomesDataset(ifile)
     dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
     # dataiter = iter(dataloader)
-    data = pd.read_csv(ifile, sep=' ', header=None)
-    data = data.reset_index(drop=True)
-    data = data.drop(data.columns[0:2], axis=1).values
-    data = data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1]))
+    if ".hapt" in ifile:
+        data = pd.read_csv(ifile, sep=' ', header=None)
+        data = data.reset_index(drop=True)
+        data = data.drop(data.columns[0:2], axis=1).values
+        data_size = 805
+    else:
+        data = pd.read_csv(ifile)
+        # test just sequence from rows 7k-8k
+        # data = data.iloc[7000:7805, :].T
+        df = data.reset_index(drop=True)
+        data = df.values
+        data_size = 1000 # temp changed from 1000
+    data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
 
     # Make generator
     generator = Generator(data_size, latent_size, negative_slope)
@@ -217,12 +225,12 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, data, odir)
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
 
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(data, generated_genomes_df, odir, i)
+                    plot_pca(df, generated_genomes_df, odir, i)
 
 
 if __name__ == "__main__":
