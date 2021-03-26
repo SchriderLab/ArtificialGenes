@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 import logging
-from collections import deque
 
 plt.switch_backend('agg')
 
@@ -12,9 +11,9 @@ import torch.nn as nn
 import argparse
 from gan import Generator, Discriminator
 from torch.autograd import Variable
-from sklearn.decomposition import PCA
 from data_loader import GenomesDataset
 from torch.utils.data import DataLoader
+from data_processing import save_models, plot_losses, plot_pca, create_AGs
 
 
 def parse_args():
@@ -54,71 +53,6 @@ def parse_args():
     return args
 
 
-def save_models(gen, disc, save_gen_path, save_disc_path):
-    torch.save(gen.state_dict(), save_gen_path)
-    torch.save(disc.state_dict(), save_disc_path)
-
-
-def plot_losses(odir, losses, i):
-    fig, ax = plt.subplots()
-    plt.plot(np.array([losses]).T[0], label='Discriminator')
-    plt.plot(np.array([losses]).T[1], label='Generator')
-    plt.title("Training Losses")
-    plt.legend()
-    fig.savefig(os.path.join(odir, str(i) + '_loss.pdf'), format='pdf')
-
-
-def plot_pca(df, generated_genomes_df, odir, i):
-    df_pca = df.drop(df.columns[1], axis=1)
-    df_pca.columns = list(range(df_pca.shape[1]))
-    df_pca.iloc[:, 0] = 'Real'
-    generated_genomes_pca = generated_genomes_df.drop(generated_genomes_df.columns[1], axis=1)
-    generated_genomes_pca.columns = list(range(df_pca.shape[1]))
-    df_all_pca = pd.concat([df_pca, generated_genomes_pca])
-    pca = PCA(n_components=2)
-    PCs = pca.fit_transform(df_all_pca.drop(df_all_pca.columns[0], axis=1))
-    PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
-    PCs_df['Pop'] = list(df_all_pca[0])
-    fig = plt.figure(figsize=(10, 10))
-    ax = fig.add_subplot(1, 1, 1)
-    ax.set_xlabel('PC1')
-    ax.set_ylabel('PC2')
-    pops = ['Real', 'AG']
-    colors = ['r', 'b']
-    for pop, color in zip(pops, colors):
-        ix = PCs_df['Pop'] == pop
-        ax.scatter(PCs_df.loc[ix, 'PC1']
-                   , PCs_df.loc[ix, 'PC2']
-                   , c=color
-                   , s=50, alpha=0.2)
-    ax.legend(pops)
-    fig.savefig(os.path.join(odir, str(i) + '_pca.pdf'), format='pdf')
-
-
-def create_AGs(generator, i, ag_size, latent_size, df, odir):
-    z = torch.normal(0, 1, size=(ag_size, latent_size))
-    generator.eval()
-    generated_genomes = generator(z).detach().numpy()
-    generated_genomes[generated_genomes < 0] = 0
-    generated_genomes = np.rint(generated_genomes)
-    generated_genomes_df = pd.DataFrame(generated_genomes)
-    generated_genomes_df = generated_genomes_df.astype(int)
-    gen_names = list()
-    for j in range(0, len(generated_genomes_df)):
-        gen_names.append('AG' + str(i))
-    # generated_genomes_df.insert(loc=0, column='Type', value="AG")
-    # generated_genomes_df.insert(loc=1, column='ID', value=gen_names)
-    generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
-    df.columns = list(range(df.shape[1]))
-
-    # Output AGs in hapt format
-    generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
-
-    # Output losses
-    # pd.DataFrame(losses).to_csv(os.path.join(odir, str(i) + "_losses.txt"), sep=" ", header=False, index=False)
-    return generated_genomes_df
-
-
 def main():
 
     args = parse_args()
@@ -142,18 +76,16 @@ def main():
     dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
     # dataiter = iter(dataloader)
     if ".hapt" in ifile:
-        data = pd.read_csv(ifile, sep=' ', header=None)
-        data = data.reset_index(drop=True)
-        data = data.drop(data.columns[0:2], axis=1).values
+        df = pd.read_csv(ifile, sep=' ', header=None)
+        df = df.reset_index(drop=True)
+        # df = data.drop(data.columns[0:2], axis=1).values
         data_size = 805
     else:
-        data = pd.read_csv(ifile)
-        # test just sequence from rows 7k-8k
-        # data = data.iloc[7000:7805, :].T
-        df = data.reset_index(drop=True)
-        data = df.values
+        df = pd.read_csv(ifile)
+        df = df.reset_index(drop=True)
         data_size = 1000 # temp changed from 1000
-    data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
+    # data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
+
 
     # Make generator
     generator = Generator(data_size, latent_size, negative_slope)
@@ -225,12 +157,12 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
+                generated_genomes_df = create_AGs(generator, ifile, i, ag_size, latent_size, df, odir)
 
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(df, generated_genomes_df, odir, i)
+                    plot_pca(df, ifile, generated_genomes_df, odir, i)
 
 
 if __name__ == "__main__":
