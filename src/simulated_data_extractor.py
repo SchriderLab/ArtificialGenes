@@ -29,7 +29,7 @@ def main():
     if args.ifile != "None":
         ifiles = [os.path.join(args.idir, args.ifile)]
     else:
-        ifiles = [os.path.join(args.idir, file) for file in os.path.listdir(args.idir) if file.endswith(".gz")]
+        ifiles = [os.path.join(args.idir, file) for file in os.listdir(args.idir) if file.endswith(".gz")]
 
     for file in ifiles:
         with gzip.open(file, 'rt') as f:
