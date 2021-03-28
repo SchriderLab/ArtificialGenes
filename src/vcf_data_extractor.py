@@ -18,15 +18,16 @@ def parse_args():
     parser.add_argument("--extract_length", default="1000")
     parser.add_argument("--odir", default="None")
 
+    args = parser.parse_args()
+
     if args.odir != "None" and not os.path.exists(args.odir):
         os.mkdir(args.odir)
 
     return args
 
-
 def main():
-    args = parse_args()
 
+    args = parse_args()
     key_dataframe = pd.read_csv(args.key_file, delimiter="\t")
     key_dataframe.drop(columns=['Unnamed: 4', "Unnamed: 5"], inplace=True)
     key_dataframe = key_dataframe[key_dataframe['pop'] == args.population]
