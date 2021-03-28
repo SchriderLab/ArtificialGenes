@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument("--ifile", default="None")
     parser.add_argument("--odir", default="None")
 
-    args = parser.parse_args
+    args = parser.parse_args()
 
     if args.odir != "None" and not os.path.exists(args.odir):
         os.mkdir(args.odir)
