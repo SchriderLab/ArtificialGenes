@@ -25,7 +25,7 @@ SAVE_FREQ=$3
 # Set SIMG path
 SIMG_PATH=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
 
-if [[ "$4" != "" ]]; then
+if [[ "$4" == "" ]]; then
     echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_wgan-gp.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --plot --verbose
     singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_wgan-gp.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --plot --verbose
 else
