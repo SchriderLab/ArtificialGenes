@@ -11,9 +11,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--ifile", default="/datacommons/1000genomes/ALL.chr14.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf")
-    parser.add_argument("--popfile", default="integrated_call_samples_v3.20130502.ALL.panel", help="File mapping individuals IDs with their respective populations")
+    parser.add_argument("--popfile", default="/datacommons/1000genomes/integrated_call_samples_v3.20130502.ALL.panel", help="File mapping individuals IDs with their respective populations")
     parser.add_argument("--population", default="YRI", help="What population you want to extract")
-    parser.add_argument("--break_point", default="None", help="how many samples you want to pull before ending")
+    parser.add_argument("--break_count", default="None", help="how many samples you want to pull before ending")
     parser.add_argument("--extract_frequency", default="100000")
     parser.add_argument("--extract_length", default="1000")
     parser.add_argument("--odir", default="None")
@@ -26,15 +26,23 @@ def parse_args():
         os.mkdir(args.odir)
 
     return args
-    
+
+
+def has_ones(elem):
+    if "1" in elem:
+        return True
+    else: 
+        return False
+
 
 def main():
 
     args = parse_args()
-    key_dataframe = pd.read_csv(args.key_file, delimiter="\t")
+    key_dataframe = pd.read_csv(args.popfile, delimiter="\t")
     key_dataframe.drop(columns=['Unnamed: 4', "Unnamed: 5"], inplace=True)
     key_dataframe = key_dataframe[key_dataframe['pop'] == args.population]
-    yri_samples = list(key_dataframe['sample'].values)
+    pop_samples = list(key_dataframe['sample'].values)
+    pop_size = len(pop_samples)
 
     keep_columns = []
     data = {}
@@ -63,14 +71,14 @@ def main():
                             segregating_site = []
                             getting_data = False
                             sites_count += 1
-                            if args.break_point != "None":
-                                if sites_count > int(args.break_point): # for debugging/getting sample
+                            if args.break_count != "None":
+                                if sites_count > int(args.break_count): # for debugging/getting sample
                                     break 
                 else: # pulling based on diversity 
                     yri_data = [row[elem] for elem in keep_columns]
                     has_reference_allele = list(map(has_ones, yri_data))
-                    fraction = has_reference_allele.count(True) / yri_pop_size
-                    if fraction > int(args.threshold) and fraction < 1-int(args.threshold):
+                    fraction = has_reference_allele.count(True) / pop_size
+                    if fraction > float(args.threshold) and fraction < 1-float(args.threshold):
                         location.append(row[1])
                         segregating_site.append(yri_data)     
 
@@ -80,14 +88,14 @@ def main():
                         segregating_site = []
                         sites_count += 1
                         if args.break_count != "None":
-                            if sites_count > int(args.break_point): # for debugging/getting sample
+                            if sites_count > int(args.break_count): # for debugging/getting sample
                                 break 
                 i += 1
 
             if row[0] == ("#CHROM"):
                 print(len(row))
                 for j, label in enumerate(row):
-                    if label in yri_samples:
+                    if label in pop_samples:
                         keep_columns.append(j)
 
     full_dataframe_one = pd.DataFrame([])
@@ -111,7 +119,7 @@ def main():
     full_dataframe_two.to_csv(os.path.join(args.odir, "full_dataframe_two.csv"), index=False)
 
     if args.odir != "None":
-        with open(os.path.join(args.odir, "locations.txt")) as f:
+        with open(os.path.join(args.odir, "locations.txt"), "w") as f:
             f.write(str(location))
             f.close()
 
