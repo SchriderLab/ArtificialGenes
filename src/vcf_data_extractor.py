@@ -17,6 +17,9 @@ def parse_args():
     parser.add_argument("--extract_frequency", default="100000")
     parser.add_argument("--extract_length", default="1000")
     parser.add_argument("--odir", default="None")
+    parser.add_argument("--locations_ofile", default="None")
+    parser.add_argument("--consecutive_sites", action="store_true")
+    parser.add_argument("--threshold", default=".25", help="What minimum percentage of alleles should be alternate?")
 
     args = parser.parse_args()
 
@@ -24,6 +27,9 @@ def parse_args():
         os.mkdir(args.odir)
 
     return args
+
+
+def consecutive_sites()
 
 def main():
 
@@ -44,26 +50,43 @@ def main():
     with open(args.ifile) as csvfile:
         file_reader = csv.reader(csvfile, delimiter='\t')
             
-        # pulls out 1000 consecutive sites every 100k sites for the individuals we're interested in
         for row in file_reader:
 
             if not row[0].startswith('#'):
-                if (i % int(args.extract_frequency) == 1 and i != 1) or getting_data == True:
-                    getting_data = True
+                if args.consecutive_sites: # pulling based on consecutive sites
+                    if (i % int(args.extract_frequency) == 1 and i != 1) or getting_data == True:
+                        getting_data = True
+                        yri_data = [row[elem] for elem in keep_columns]
+                        location.append(row[1])
+                        segregating_site.append(yri_data)     
+                        
+                        if len(segregating_site) == int(args.extract_length):
+                            data["site{}".format(sites_count)] = segregating_site.copy()
+
+                            segregating_site = []
+                            getting_data = False
+                            sites_count += 1
+                            if args.break_point != "None":
+                                if sites_count > int(args.break_point): # for debugging/getting sample
+                                    break 
+                else: # pulling based on diversity 
                     yri_data = [row[elem] for elem in keep_columns]
-                    location.append(row[1])
-                    segregating_site.append(yri_data)     
-                    
+                    has_reference_allele = list(map(has_ones, yri_data))
+                    fraction = has_reference_allele.count(True) / yri_pop_size
+                    if fraction > int(args.threshold) and fraction < 1-int(args.threshold):
+                        location.append(row[1])
+                        segregating_site.append(yri_data)     
+
                     if len(segregating_site) == int(args.extract_length):
                         data["site{}".format(sites_count)] = segregating_site.copy()
 
                         segregating_site = []
-                        getting_data = False
                         sites_count += 1
-                        if args.break_point != "None":
+                        if args.break_count != "None":
                             if sites_count > int(args.break_point): # for debugging/getting sample
                                 break 
                 i += 1
+
             if row[0] == ("#CHROM"):
                 print(len(row))
                 for j, label in enumerate(row):
@@ -89,6 +112,11 @@ def main():
 
     full_dataframe_one.to_csv(os.path.join(args.odir, "full_dataframe_one.csv"), index=False)
     full_dataframe_two.to_csv(os.path.join(args.odir, "full_dataframe_two.csv"), index=False)
+
+    if args.locations_ofile != "None":
+        with open(args.locations_ofile, "w") as f:
+            f.write(str(location))
+            f.close()
 
 
 if __name__ == "__main__":
