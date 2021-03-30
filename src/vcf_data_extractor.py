@@ -17,7 +17,6 @@ def parse_args():
     parser.add_argument("--extract_frequency", default="100000")
     parser.add_argument("--extract_length", default="1000")
     parser.add_argument("--odir", default="None")
-    parser.add_argument("--locations_ofile", default="None")
     parser.add_argument("--consecutive_sites", action="store_true")
     parser.add_argument("--threshold", default=".25", help="What minimum percentage of alleles should be alternate?")
 
@@ -113,8 +112,8 @@ def main():
     full_dataframe_one.to_csv(os.path.join(args.odir, "full_dataframe_one.csv"), index=False)
     full_dataframe_two.to_csv(os.path.join(args.odir, "full_dataframe_two.csv"), index=False)
 
-    if args.locations_ofile != "None":
-        with open(args.locations_ofile, "w") as f:
+    if args.odir != "None":
+        with open(os.path.join(args.odir, "locations.txt")) as f:
             f.write(str(location))
             f.close()
 
