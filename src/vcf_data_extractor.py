@@ -26,9 +26,7 @@ def parse_args():
         os.mkdir(args.odir)
 
     return args
-
-
-def consecutive_sites()
+    
 
 def main():
 
