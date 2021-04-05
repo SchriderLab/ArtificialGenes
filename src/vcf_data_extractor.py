@@ -55,14 +55,14 @@ def main():
     with open(args.ifile) as csvfile:
         file_reader = csv.reader(csvfile, delimiter='\t')
             
-        for row in file_reader:
+        for line_count, row in enumerate(file_reader):
 
             if not row[0].startswith('#'):
                 if args.consecutive_sites: # pulling based on consecutive sites
                     if (i % int(args.extract_frequency) == 1 and i != 1) or getting_data == True:
                         getting_data = True
                         yri_data = [row[elem] for elem in keep_columns]
-                        location.append(row[1])
+                        location.append((line_count+1, row[1]))
                         segregating_site.append(yri_data)     
                         
                         if len(segregating_site) == int(args.extract_length):
@@ -79,7 +79,7 @@ def main():
                     has_reference_allele = list(map(has_ones, yri_data))
                     fraction = has_reference_allele.count(True) / pop_size
                     if fraction > float(args.threshold) and fraction < 1-float(args.threshold):
-                        location.append(row[1])
+                        location.append((line_count+1, row[1]))
                         segregating_site.append(yri_data)     
 
                     if len(segregating_site) == int(args.extract_length):

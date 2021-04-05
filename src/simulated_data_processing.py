@@ -21,7 +21,7 @@ def main():
     args = parse_args()
 
     if args.ifile != "None":
-        files = list(ifile)
+        files = [args.ifile]
     else:
         files = os.listdir(args.idir)
 
@@ -29,11 +29,14 @@ def main():
 
     for file in files:
         data_file = os.path.join(args.idir, file)
+        print(data_file)
         data = pd.read_csv(data_file)
         
         # there is probably a more efficient way to do this
         for i in range(len(data)):
-            df_full = df_full.append(data.iloc[i, :].dropna()[:args.length])
+            slice = data.iloc[i, :].dropna()
+            if len(slice) > int(args.length):
+                df_full = df_full.append(slice[:int(args.length)])
             if args.break_count != "None":
                 if i > args.break_count:
                     break
