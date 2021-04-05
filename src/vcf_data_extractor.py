@@ -115,8 +115,11 @@ def main():
         full_dataframe_one = pd.concat([full_dataframe_one, sequence_df_one], ignore_index=True)
         full_dataframe_two = pd.concat([full_dataframe_two, sequence_df_two], ignore_index=True)
 
-    full_dataframe_one.to_csv(os.path.join(args.odir, "full_dataframe_one.csv"), index=False)
-    full_dataframe_two.to_csv(os.path.join(args.odir, "full_dataframe_two.csv"), index=False)
+    data_one = full_dataframe_one.T.values.reshape(-1, int(args.extract_length))
+    data_two = full_dataframe_two.T.values.reshape(-1, int(args.extract_length))
+    data_one_df = pd.DataFrame(data_one)
+    data_two_df = pd.DataFrame(data_two)
+    pd.concat((data_one_df, data_two_df)).to_csv(os.path.join(args.odir, "full_dataframe.csv"), index=False)
 
     if args.odir != "None":
         with open(os.path.join(args.odir, "locations.txt"), "w") as f:
