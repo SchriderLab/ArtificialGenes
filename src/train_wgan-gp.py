@@ -35,6 +35,7 @@ def parse_args():
     parser.add_argument("--gpu_count", default="0")
     parser.add_argument("--critic_iter", default="5")
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument("--data_size", default="1000")
 
     args = parser.parse_args()
 
@@ -108,7 +109,7 @@ def main():
     else:
         data = pd.read_csv(ifile)
         data = data.values
-        data_size = 1000
+        data_size = int(args.data_size)
         df = pd.DataFrame(data)
     data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
 

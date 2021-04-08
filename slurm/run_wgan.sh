@@ -21,13 +21,14 @@ unset OMP_NUM_THREADS
 ODIR=$1
 IFILE=$2
 SAVE_FREQ=$3
+DATA_SIZE=$4
 
 # Set SIMG path
 SIMG_PATH=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
 
-if [[ "$4" == "" ]]; then
-    echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_wgan-gp.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --plot --verbose
-    singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_wgan-gp.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --plot --verbose
+if [[ "$5" == "" ]]; then
+    echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_wgan-gp.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --data_size $DATA_SIZE --plot --verbose
+    singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_wgan-gp.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --data_size $DATA_SIZE --plot --verbose
 else
     echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_wgan.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --plot --verbose
     singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 ../src/train_wgan.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --plot --verbose
