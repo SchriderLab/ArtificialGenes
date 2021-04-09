@@ -29,13 +29,12 @@ def parse_args():
     parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--save_freq", default="0", help="save model every save_freq epochs") # zero means don't save
     parser.add_argument("--batch_size", default="64")
-    parser.add_argument("--ifile", default="../1000G_real_genomes/805_SNP_1000G_real.hapt")
-    parser.add_argument("--odir", default="../output")
+    parser.add_argument("--ifile", default="1000G_real_genomes/805_SNP_1000G_real.hapt")
+    parser.add_argument("--odir", default="output/")
     parser.add_argument("--plot", action="store_true")
     parser.add_argument("--gpu_count", default="0")
     parser.add_argument("--critic_iter", default="5")
     parser.add_argument("--verbose", action="store_true")
-    parser.add_argument("--data_size", default="1000")
 
     args = parser.parse_args()
 
@@ -96,10 +95,6 @@ def main():
 
     device = torch.device('cuda' if use_cuda else 'cpu')
 
-    # Read input
-    genomes_data = GenomesDataset(ifile)
-    dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
-
     if ".hapt" in ifile:
         df = pd.read_csv(ifile, sep=' ', header=None)
         df = df.sample(frac=1).reset_index(drop=True)
@@ -108,10 +103,20 @@ def main():
         data_size = 805
     else:
         data = pd.read_csv(ifile)
+        data_size = data.shape[1]
+        mask = data.isin([2, 3])
+        data = data[~mask]
+        data = data.dropna()
+        if len(data) > ag_size*5:
+            data = data.sample(n=ag_size*5)  # need to test what this multiple should be
         data = data.values
-        data_size = int(args.data_size)
+        data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
         df = pd.DataFrame(data)
-    data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
+
+    # Read input
+    genomes_data = GenomesDataset(data)
+    dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
+
 
     # Make generator
     generator = Generator(data_size, latent_size, negative_slope).to(device) #

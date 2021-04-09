@@ -19,6 +19,7 @@ def plot_losses(odir, losses, i):
     plt.title("Training Losses")
     plt.legend()
     fig.savefig(os.path.join(odir, str(i) + '_loss.pdf'), format='pdf')
+    plt.close(fig)
 
 
 def plot_pca(df, df_path, generated_genomes_df, odir, i):
@@ -59,6 +60,8 @@ def plot_pca(df, df_path, generated_genomes_df, odir, i):
                    , s=50, alpha=0.2)
     ax.legend(pops)
     fig.savefig(os.path.join(odir, str(i) + '_pca.pdf'), format='pdf')
+    plt.cla()
+    plt.close(fig)
 
 
 def create_AGs(generator, ifile, i, ag_size, latent_size, df, odir):
