@@ -1,3 +1,6 @@
+""" This script is deprecated. Look at train_wgan-gp.py or train_gan.py for a working GAN"""
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
