@@ -23,8 +23,8 @@ import logging
 # in the process of converting everything to pytorch (way easier)
 logging.basicConfig(level=logging.DEBUG)
 
-inpt = "../1000G_real_genomes/805_SNP_1000G_real.hapt" #hapt format input file
-latent_size = 600 #size of noise input
+inpt = "1000G_real_genomes/10K_SNP_1000G_real.hapt" #hapt format input file
+latent_size = 6000 #size of noise input
 alph = 0.01 #alpha value for LeakyReLU
 g_learn = 0.0001 #generator learning rate
 d_learn = 0.0008 #discriminator learning rate
@@ -33,8 +33,8 @@ batch_size = 32
 ag_size = 216 #number of artificial genomes (haplotypes) to be created
 gpu_count = 0
 # gpu_count = 2 #number of GPUs
-save_that = 500 #epoch interval for saving outputs
-odir = '../outputs/tf_gan_output'
+save_that = 200 #epoch interval for saving outputs
+odir = 'tf_gan_output'
 
 #For saving models
 def save_mod(gan, gen, disc, epo):
