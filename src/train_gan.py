@@ -75,8 +75,8 @@ def main():
         df = pd.read_csv(ifile, sep=' ', header=None)
         df = df.sample(frac=1).reset_index(drop=True)
         df = df.drop(df.columns[0:2], axis=1)
-        df = df.values
-        data_size = 805
+        data = df.values
+        data_size = data.shape[1]
     else:
         data = pd.read_csv(ifile)
         data_size = data.shape[1]
@@ -86,8 +86,8 @@ def main():
         if len(data) > ag_size * 5:
             data = data.sample(n=ag_size * 5)  # need to test what this multiple should be
         data = data.values
-        data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
-        df = pd.DataFrame(data)
+    df = pd.DataFrame(data)
+    data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
 
     # Read input
     genomes_data = GenomesDataset(data)
@@ -163,12 +163,12 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, ifile, i, ag_size, latent_size, df, odir)
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
 
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(df, ifile, generated_genomes_df, odir, i)
+                    plot_pca(df, generated_genomes_df, odir, i)
 
 
 if __name__ == "__main__":

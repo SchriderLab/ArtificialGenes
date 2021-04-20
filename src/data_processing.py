@@ -6,7 +6,6 @@ from sklearn.decomposition import PCA
 import pandas as pd
 
 
-
 def save_models(gen, disc, save_gen_path, save_disc_path):
     torch.save(gen.state_dict(), save_gen_path)
     torch.save(disc.state_dict(), save_disc_path)
@@ -22,29 +21,17 @@ def plot_losses(odir, losses, i):
     plt.close(fig)
 
 
-def plot_pca(df, df_path, generated_genomes_df, odir, i):
+def plot_pca(df, generated_genomes_df, odir, i):
 
-    if ".hapt" in df_path:
-        df = df.drop(df.columns[1], axis=1)
-        df.columns = list(range(df.shape[1]))
-        df.iloc[:, 0] = 'Real'
-        generated_genomes_df = generated_genomes_df.drop(generated_genomes_df.columns[1], axis=1)
-        generated_genomes_df.columns = list(range(df.shape[1]))
-        df_all_pca = pd.concat([df, generated_genomes_df])
-        pca = PCA(n_components=2)
-        PCs = pca.fit_transform(df_all_pca.drop(df_all_pca.columns[0], axis=1))
-        PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
-        PCs_df['Pop'] = list(df_all_pca[0])
-    else:
-        df_temp = df.copy()
-        df_temp["label"] = "Real"
-        generated_genomes_df['label'] = "AG"
-        df_all_pca = pd.concat([df_temp, generated_genomes_df])
-        pca = PCA(n_components=2)
-        labels = df_all_pca.pop("label").to_list()
-        PCs = pca.fit_transform(df_all_pca)
-        PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
-        PCs_df['Pop'] = labels
+    df_temp = df.copy()
+    df_temp["label"] = "Real"
+    generated_genomes_df['label'] = "AG"
+    df_all_pca = pd.concat([df_temp, generated_genomes_df])
+    pca = PCA(n_components=2)
+    labels = df_all_pca.pop("label").to_list()
+    PCs = pca.fit_transform(df_all_pca)
+    PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
+    PCs_df['Pop'] = labels
 
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(1, 1, 1)
@@ -64,7 +51,8 @@ def plot_pca(df, df_path, generated_genomes_df, odir, i):
     plt.close(fig)
 
 
-def create_AGs(generator, ifile, i, ag_size, latent_size, df, odir):
+def create_AGs(generator, i, ag_size, latent_size, df, odir):
+
     z = torch.normal(0, 1, size=(ag_size, latent_size))
     generator.eval()
     generated_genomes = generator(z).detach().numpy()
@@ -72,18 +60,9 @@ def create_AGs(generator, ifile, i, ag_size, latent_size, df, odir):
     generated_genomes = np.rint(generated_genomes)
     generated_genomes_df = pd.DataFrame(generated_genomes)
     generated_genomes_df = generated_genomes_df.astype(int)
-    gen_names = list()
-    for j in range(0, len(generated_genomes_df)):
-        gen_names.append('AG' + str(i))
-    if ".hapt" in ifile:
-        generated_genomes_df.insert(loc=0, column='Type', value="AG")
-        generated_genomes_df.insert(loc=1, column='ID', value=gen_names)
     generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
     df.columns = list(range(df.shape[1]))
 
-    # Output AGs in hapt format
     generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
 
-    # Output losses
-    # pd.DataFrame(losses).to_csv(os.path.join(odir, str(i) + "_losses.txt"), sep=" ", header=False, index=False)
     return generated_genomes_df

@@ -32,7 +32,6 @@ def parse_args():
     parser.add_argument("--ifile", default="1000G_real_genomes/805_SNP_1000G_real.hapt")
     parser.add_argument("--odir", default="output/")
     parser.add_argument("--plot", action="store_true")
-    parser.add_argument("--gpu_count", default="0")
     parser.add_argument("--critic_iter", default="5")
     parser.add_argument("--verbose", action="store_true")
 
@@ -86,12 +85,10 @@ def main():
     batch_size = int(args.batch_size)
     ag_size = int(args.ag_size)
     use_cuda = args.use_cuda
-    gpu_count = int(args.gpu_count) # not used atm
     save_freq = int(args.save_freq)
     critic_iter = int(args.critic_iter)
     beta1 = 0.5
     beta2 = 0.999
-    lambda_term = 10
 
     device = torch.device('cuda' if use_cuda else 'cpu')
 
@@ -99,19 +96,19 @@ def main():
         df = pd.read_csv(ifile, sep=' ', header=None)
         df = df.sample(frac=1).reset_index(drop=True)
         df = df.drop(df.columns[0:2], axis=1)
-        df = df.values
-        data_size = 805
+        data = df.values
+        data_size = data.shape[1]
     else:
         data = pd.read_csv(ifile)
         data_size = data.shape[1]
         mask = data.isin([2, 3])
         data = data[~mask]
         data = data.dropna()
-        if len(data) > ag_size*5:
-            data = data.sample(n=ag_size*5)  # need to test what this multiple should be
+        if len(data) > ag_size * 5:
+            data = data.sample(n=ag_size * 5)  # need to test what this multiple should be
         data = data.values
-        data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
-        df = pd.DataFrame(data)
+    df = pd.DataFrame(data)
+    data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
 
     # Read input
     genomes_data = GenomesDataset(data)
@@ -123,9 +120,6 @@ def main():
 
     # Make discriminator
     discriminator = Discriminator(data_size, negative_slope).to(device) #
-
-    # if gpu_count > 1:
-    #     discriminator = multi_gpu_model(discriminator, gpus=gpu_count)
 
     losses = []
 
@@ -202,12 +196,12 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, ifile, i, ag_size, latent_size, df, odir)
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
 
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(df, ifile, generated_genomes_df, odir, i)
+                    plot_pca(df, generated_genomes_df, odir, i)
 
 
 if __name__ == "__main__":
