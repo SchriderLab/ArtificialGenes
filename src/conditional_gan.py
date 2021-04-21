@@ -13,9 +13,11 @@ plt.switch_backend('agg')
 import torch
 import torch.nn as nn
 import argparse
-from gan import Generator, Discriminator
+from gan import ConditionalGenerator, ConditionalDiscriminator
 from torch.autograd import Variable
-from sklearn.decomposition import PCA
+from data_processing import save_models, plot_losses, plot_pca, create_AGs
+from data_loader import PopulationsDataset
+from torch.utils.data import DataLoader
 
 
 def parse_args():
@@ -31,10 +33,9 @@ def parse_args():
     parser.add_argument("--use_cuda", action="store_true")
     parser.add_argument("--save_freq", default="0", help="save model every save_freq epochs") # zero means don't save
     parser.add_argument("--batch_size", default="32")
-    parser.add_argument("--ifile", default="../1000G_real_genomes/805_SNP_1000G_real.hapt")
-    parser.add_argument("--odir", default="../output")
+    parser.add_argument("--idir", default="populations")
+    parser.add_argument("--odir", default="CGAN_output")
     parser.add_argument("--plot", action="store_true")
-    parser.add_argument("--gpu_count", default="0")
     parser.add_argument("--n_classes", default="2")
     parser.add_argument("--verbose", action="store_true")
 
@@ -56,76 +57,10 @@ def parse_args():
     return args
 
 
-def save_models(gen, disc, save_gen_path, save_disc_path):
-    torch.save(gen.state_dict(), save_gen_path)
-    torch.save(disc.state_dict(), save_disc_path)
-
-
-def plot_losses(odir, losses, i):
-    fig, ax = plt.subplots()
-    plt.plot(np.array([losses]).T[0], label='Discriminator')
-    plt.plot(np.array([losses]).T[1], label='Generator')
-    plt.title("Training Losses")
-    plt.legend()
-    fig.savefig(os.path.join(odir, str(i) + '_loss.pdf'), format='pdf')
-
-
-def plot_pca(df, generated_genomes_df, odir, i):
-    df_pca = df.drop(df.columns[1], axis=1)
-    df_pca.columns = list(range(df_pca.shape[1]))
-    df_pca.iloc[:, 0] = 'Real'
-    generated_genomes_pca = generated_genomes_df.drop(generated_genomes_df.columns[1], axis=1)
-    generated_genomes_pca.columns = list(range(df_pca.shape[1]))
-    df_all_pca = pd.concat([df_pca, generated_genomes_pca])
-    pca = PCA(n_components=2)
-    PCs = pca.fit_transform(df_all_pca.drop(df_all_pca.columns[0], axis=1))
-    PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
-    PCs_df['Pop'] = list(df_all_pca[0])
-    fig = plt.figure(figsize=(10, 10))
-    ax = fig.add_subplot(1, 1, 1)
-    ax.set_xlabel('PC1')
-    ax.set_ylabel('PC2')
-    pops = ['Real', 'AG']
-    colors = ['r', 'b']
-    for pop, color in zip(pops, colors):
-        ix = PCs_df['Pop'] == pop
-        ax.scatter(PCs_df.loc[ix, 'PC1']
-                   , PCs_df.loc[ix, 'PC2']
-                   , c=color
-                   , s=50, alpha=0.2)
-    ax.legend(pops)
-    fig.savefig(os.path.join(odir, str(i) + '_pca.pdf'), format='pdf')
-
-
-def create_AGs(generator, i, ag_size, latent_size, df, odir):
-    z = torch.normal(0, 1, size=(ag_size, latent_size))
-    generator.eval()
-    generated_genomes = generator(z).detach().numpy()
-    generated_genomes[generated_genomes < 0] = 0
-    generated_genomes = np.rint(generated_genomes)
-    generated_genomes_df = pd.DataFrame(generated_genomes)
-    generated_genomes_df = generated_genomes_df.astype(int)
-    gen_names = list()
-    for j in range(0, len(generated_genomes_df)):
-        gen_names.append('AG' + str(i))
-    generated_genomes_df.insert(loc=0, column='Type', value="AG")
-    generated_genomes_df.insert(loc=1, column='ID', value=gen_names)
-    generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
-    df.columns = list(range(df.shape[1]))
-
-    # Output AGs in hapt format
-    generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
-
-    # Output losses
-    # pd.DataFrame(losses).to_csv(os.path.join(odir, str(i) + "_losses.txt"), sep=" ", header=False, index=False)
-    return generated_genomes_df
-
-
 def main():
 
     args = parse_args()
 
-    ifile = args.ifile
     odir = args.odir
     latent_size = int(args.latent_size)
     negative_slope = float(args.negative_slope)
@@ -135,33 +70,40 @@ def main():
     batch_size = int(args.batch_size)
     ag_size = int(args.ag_size)
     use_cuda = args.use_cuda
-    gpu_count = int(args.gpu_count)
     save_freq = int(args.save_freq)
     n_classes = int(args.n_classes)
     device = torch.device('cuda' if use_cuda else 'cpu')
 
+    ifiles = [x for x in os.listdir(args.idir) if x.endswith(".csv")]
+    df = pd.DataFrame()
+    pop_dict = {}
+    for i, file in enumerate(ifiles):
+        pop_dict[i] = file.split(".")[0]
+        population = pd.read_csv(os.path.join(args.idir, file))
+        population["label"] = i
+        df = df.append(population)
+
+    labels = df["label"].astype(int)
+    del df["label"]
+    data_size = df.shape[1]
+    mask = df.isin([2, 3])
+    df = df[~mask]
+    df = df.dropna()
+    if len(df) > ag_size * 5:
+        df = df.sample(n=ag_size * 5)  # need to test what this multiple should be
+    data = torch.FloatTensor(df.values - np.random.uniform(0, 0.1, size=(df.shape[0], df.shape[1])))
+
     # Read input
-    df = pd.read_csv(ifile, sep=' ', header=None)
-    df = df.sample(frac=1).reset_index(drop=True)
-    df_noname = df.drop(df.columns[0:2], axis=1)
-    df_noname = df_noname.values
-    df_noname = df_noname - np.random.uniform(0, 0.1, size=(df_noname.shape[0], df_noname.shape[1]))
-    df_noname = pd.DataFrame(df_noname)
+    genomes_data = PopulationsDataset(data, labels.values)
+    dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
 
     # Make generator
-    generator = ConditionalGenerator(df_noname, latent_size, negative_slope, n_classes)
+    generator = ConditionalGenerator(data_size, latent_size, negative_slope, n_classes)
 
     # Make discriminator
-    discriminator = ConditionalDiscriminator(df_noname, negative_slope, n_classes)
+    discriminator = ConditionalDiscriminator(data_size, negative_slope, n_classes)
 
-    # if gpu_count > 1:
-    #     discriminator = multi_gpu_model(discriminator, gpus=gpu_count)
-
-    X_real = df_noname.values
-
-    # losses = deque(maxlen=1000)
     losses = []
-    batches = len(X_real) // batch_size
 
     loss_fn = nn.BCELoss()
     gen_optimizer = torch.optim.Adam(generator.parameters(), lr=g_learn)
@@ -170,41 +112,44 @@ def main():
     # Training iteration
     for i in range(epochs):
 
-        ### Need to create a data generator and grab batches of data, labels ###
-        for b in range(batches):
-            labels = ... # need to make dataloader for labels
-            ones = Variable(torch.Tensor(batch_size, 1).fill_(1).type(torch.FloatTensor))
-            zeros = Variable(torch.Tensor(batch_size, 1).fill_(0).type(torch.FloatTensor))
+        for j, (X_real, y_real) in enumerate(dataloader):
 
-            gen_labels = Variable(torch.LongTensor(np.random.randint(0, n_classes, batch_size)))
-
-            # get the batch from real data
-            X_batch_real = torch.FloatTensor(X_real[b * batch_size:(b + 1) * batch_size]).to(device)
-            z = torch.normal(0, 1, size=(batch_size, latent_size)).to(device)
-            X_batch_fake = generator(z, gen_labels).detach().to(device)  # create batch from generator using noise as input
-
-            ### ----------------------------------------------------------------- ###
-            #                           train discriminator                       #
-            ### ----------------------------------------------------------------- ###
-            discriminator.train()
-            disc_optimizer.zero_grad()
-            real_preds = discriminator(X_batch_real, labels)
-            disc_loss = loss_fn(real_preds, ones - torch.FloatTensor(ones.shape[0], ones.shape[1]).uniform_(0, 0.1))
-            fake_preds = discriminator(X_batch_fake, gen_labels)
-            disc_loss += loss_fn(fake_preds, zeros)
-            disc_loss.backward()
-            disc_optimizer.step()
+            real = Variable(torch.FloatTensor(batch_size, 1).fill_(1.0))
+            fake = Variable(torch.FloatTensor(batch_size, 1).fill_(0.0))
 
             ### ----------------------------------------------------------------- ###
             #                           train generator                           #
             ### ----------------------------------------------------------------- ###
-            generator.train()
             gen_optimizer.zero_grad()
-            X_batch_fake = generator(z)
+            z = torch.normal(0, 1, size=(batch_size, latent_size)).to(device)
+            gen_labels = Variable(torch.LongTensor(np.random.randint(0, n_classes, batch_size)))
+
+            # create batch of samples
+            X_batch_fake = generator(z, gen_labels)
+
+            # test samples
             y_pred = discriminator(X_batch_fake, gen_labels)
-            gen_loss = loss_fn(y_pred, ones)
+            gen_loss = loss_fn(y_pred, real)
             gen_loss.backward()
             gen_optimizer.step()
+
+            ### ----------------------------------------------------------------- ###
+            #                           train discriminator                       #
+            ### ----------------------------------------------------------------- ###
+            disc_optimizer.zero_grad()
+
+            # train on real data
+            real_preds = discriminator(X_real, y_real)
+            disc_real_loss = loss_fn(real_preds, real - torch.FloatTensor(real.shape[0], real.shape[1]).uniform_(0, 0.1))
+
+            # train on generated data
+            fake_preds = discriminator(X_batch_fake.detach(), gen_labels)
+            disc_fake_loss = loss_fn(fake_preds, fake)
+
+            # total loss
+            disc_loss = (disc_real_loss + disc_fake_loss) / 2
+            disc_loss.backward()
+            disc_optimizer.step()
 
         losses.append((disc_loss.item(), gen_loss.item()))
         logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, disc_loss.item(), gen_loss.item()))
@@ -216,12 +161,13 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir, pop_dict,
+                                                  model_type="conditional")
 
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(df, generated_genomes_df, odir, i)
+                    plot_pca(df, generated_genomes_df, odir, i, pop_dict)
 
 
 if __name__ == "__main__":

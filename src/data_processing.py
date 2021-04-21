@@ -21,9 +21,12 @@ def plot_losses(odir, losses, i):
     plt.close(fig)
 
 
-def plot_pca(df, generated_genomes_df, odir, i):
+def plot_pca(df, generated_genomes_df, odir, i, pop_dict=None, model_type="normal"):
+
 
     df_temp = df.copy()
+    # df_temp["label"] = df_temp["label"].map(lambda x: "real_"+x)
+    # need to change this to separate the different populations in a conditional GAN
     df_temp["label"] = "Real"
     generated_genomes_df['label'] = "AG"
     df_all_pca = pd.concat([df_temp, generated_genomes_df])
@@ -37,6 +40,7 @@ def plot_pca(df, generated_genomes_df, odir, i):
     ax = fig.add_subplot(1, 1, 1)
     ax.set_xlabel('PC1')
     ax.set_ylabel('PC2')
+
     pops = ['Real', 'AG']
     colors = ['r', 'b']
     for pop, color in zip(pops, colors):
@@ -51,16 +55,27 @@ def plot_pca(df, generated_genomes_df, odir, i):
     plt.close(fig)
 
 
-def create_AGs(generator, i, ag_size, latent_size, df, odir):
+def create_AGs(generator, i, ag_size, latent_size, df, odir, pop_dict=None, model_type="normal"):
+
+    def pop_map(value, pop_dict=pop_dict):
+        return pop_dict[value]
 
     z = torch.normal(0, 1, size=(ag_size, latent_size))
     generator.eval()
-    generated_genomes = generator(z).detach().numpy()
+    if model_type == "conditional":
+        classes = torch.randint(0, 2, (ag_size,))
+        generated_genomes = generator(z, classes).detach().numpy()
+    else:
+        generated_genomes = generator(z).detach().numpy()
     generated_genomes[generated_genomes < 0] = 0
     generated_genomes = np.rint(generated_genomes)
     generated_genomes_df = pd.DataFrame(generated_genomes)
     generated_genomes_df = generated_genomes_df.astype(int)
     generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
+
+    if model_type == "conditional":
+        generated_genomes_df["label"] = classes.numpy()
+        generated_genomes_df["label"] = generated_genomes_df["label"].map(lambda x: pop_dict[x])
     df.columns = list(range(df.shape[1]))
 
     generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)

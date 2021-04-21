@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 class Generator(nn.Module):
@@ -50,40 +51,45 @@ class GAN(nn.Module):
 
 
 class ConditionalGenerator(nn.Module):
-    def __init__(self, data, latent_size, negative_slope, n_classes):
+    def __init__(self, data_size, latent_size, negative_slope, num_classes):
         super(ConditionalGenerator, self).__init__()
         self.negative_slope = negative_slope
-        self.data_size = data.shape[1]
+        self.data_size = data_size
+        self.num_classes = num_classes
         self.layers = nn.Sequential(
-            nn.Linear(in_features=latent_size+n_classes, out_features=int(data.shape[1]//1.2)),
+            nn.Linear(in_features=latent_size+self.num_classes, out_features=int(self.data_size//1.2)),
             nn.LeakyReLU(negative_slope=self.negative_slope),
-            nn.Linear(in_features=int(data.shape[1]//1.2), out_features=int(data.shape[1]//1.1)),
+            nn.Linear(in_features=int(self.data_size//1.2), out_features=int(self.data_size//1.1)),
             nn.LeakyReLU(negative_slope=self.negative_slope),
-            nn.Linear(in_features=int(data.shape[1]//1.1), out_features=data.shape[1]),
+            nn.Linear(in_features=int(self.data_size//1.1), out_features=self.data_size),
             nn.Tanh()
         )
 
-    def forward(self, x, label):
-        input_ = torch.cat((x, label), -1)
+    def forward(self, x, labels):
+        labels = torch.tensor(np.eye(self.num_classes)[labels.numpy().reshape(-1)], dtype=torch.float)
+        input_ = torch.cat((x, labels), 1)
         return self.layers(input_)
 
 
 class ConditionalDiscriminator(nn.Module):
-    def __init__(self, data, negative_slope, n_classes):
+    def __init__(self, data_size, negative_slope, num_classes):
         super(ConditionalDiscriminator, self).__init__()
         self.negative_slope = negative_slope
+        self.data_size = data_size
+        self.num_classes = num_classes
         self.layers = nn.Sequential(
-            nn.Linear(in_features=data.shape[1]+n_classes, out_features=int(data.shape[1]//2)),
+            nn.Linear(in_features=self.data_size+self.num_classes, out_features=int(self.data_size//2)),
             nn.LeakyReLU(negative_slope=self.negative_slope),
-            nn.Linear(in_features=int(data.shape[1]//2), out_features=int(data.shape[1]//3)),
+            nn.Linear(in_features=int(self.data_size//2), out_features=int(self.data_size//3)),
             nn.LeakyReLU(negative_slope=self.negative_slope),
-            nn.Linear(in_features=int(data.shape[1]//3), out_features=1),
+            nn.Linear(in_features=int(self.data_size//3), out_features=1),
             nn.Sigmoid()
         )
 
     # pass example and one-hot encoded label
-    def forward(self, x, label):
-        input_ = torch.cat((x, label), -1)
+    def forward(self, x, labels):
+        labels = torch.tensor(np.eye(self.num_classes)[labels.numpy().reshape(-1)], dtype=torch.float)
+        input_ = torch.cat((x, labels), 1)
         return self.layers(input_)
 
 
