@@ -1,5 +1,7 @@
 import torch
 import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
+from sklearn.manifold import TSNE
 import numpy as np
 import os
 from sklearn.decomposition import PCA
@@ -21,44 +23,52 @@ def plot_losses(odir, losses, i):
     plt.close(fig)
 
 
-def plot_pca(df, generated_genomes_df, odir, i, pop_dict=None, model_type="normal"):
+def plot_pca(df, i, generated_genomes_df, odir, model_type="normal", labels=None):
 
+    if model_type == "conditional":
+        pops = ['Real_YRI', 'Real_GBR', 'AG_YRI', 'AG_GBR']
+        colors = ['r', 'b', 'm', 'y']
+    else:
+        pops = ['Real', 'AG']
+        colors = ['r', 'b']
 
     df_temp = df.copy()
-    # df_temp["label"] = df_temp["label"].map(lambda x: "real_"+x)
+    # labels = labels[df_temp.index]
+    # df_test = df_temp.loc[:, ~df.columns.duplicated()]
+
+    df_temp["label"] = labels.map(lambda x: "Real_"+x)
     # need to change this to separate the different populations in a conditional GAN
-    df_temp["label"] = "Real"
-    generated_genomes_df['label'] = "AG"
+    generated_genomes_df['label'] = generated_genomes_df.loc[:, "label"].map(lambda x: "AG_"+x)
     df_all_pca = pd.concat([df_temp, generated_genomes_df])
-    pca = PCA(n_components=2)
+    pca = PCA(n_components=3)
     labels = df_all_pca.pop("label").to_list()
     PCs = pca.fit_transform(df_all_pca)
-    PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
+    PCs_df = pd.DataFrame(data=PCs, columns=["PC1", "PC2", "PC3"])
+    # PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
     PCs_df['Pop'] = labels
 
     fig = plt.figure(figsize=(10, 10))
-    ax = fig.add_subplot(1, 1, 1)
-    ax.set_xlabel('PC1')
-    ax.set_ylabel('PC2')
+    ax = plt.axes(projection="3d")
 
-    pops = ['Real', 'AG']
-    colors = ['r', 'b']
+    # ax = fig.add_subplot(1, 1, 1)
+    # ax.set_xlabel('PC1')
+    # ax.set_ylabel('PC2')
+
+
     for pop, color in zip(pops, colors):
         ix = PCs_df['Pop'] == pop
-        ax.scatter(PCs_df.loc[ix, 'PC1']
-                   , PCs_df.loc[ix, 'PC2']
-                   , c=color
-                   , s=50, alpha=0.2)
+        ax.scatter3D(PCs_df.loc[ix, 'PC1'], PCs_df.loc[ix, 'PC2'], PCs_df.loc[ix, 'PC3'], c=color, s=50, alpha=0.2)
+        # ax.scatter(PCs_df.loc[ix, 'PC1']
+        #            , PCs_df.loc[ix, 'PC2']
+        #            , c=color
+        #            , s=50, alpha=0.2)
     ax.legend(pops)
     fig.savefig(os.path.join(odir, str(i) + '_pca.pdf'), format='pdf')
     plt.cla()
     plt.close(fig)
 
 
-def create_AGs(generator, i, ag_size, latent_size, df, odir, pop_dict=None, model_type="normal"):
-
-    def pop_map(value, pop_dict=pop_dict):
-        return pop_dict[value]
+def create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict=None, model_type="normal"):
 
     z = torch.normal(0, 1, size=(ag_size, latent_size))
     generator.eval()
@@ -75,7 +85,7 @@ def create_AGs(generator, i, ag_size, latent_size, df, odir, pop_dict=None, mode
 
     if model_type == "conditional":
         generated_genomes_df["label"] = classes.numpy()
-        generated_genomes_df["label"] = generated_genomes_df["label"].map(lambda x: pop_dict[x])
+        generated_genomes_df["label"] = generated_genomes_df["label"].map(lambda x: reversed_pop_dict[x])
     df.columns = list(range(df.shape[1]))
 
     generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
