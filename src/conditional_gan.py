@@ -1,6 +1,3 @@
-### This script doesn't run yet ###
-
-
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -26,7 +23,7 @@ def parse_args():
     parser.add_argument("--latent_size", default="600", help="size of noise input")
     parser.add_argument("--negative_slope", default="0.01", help="alpha value for LeakyReLU")
     parser.add_argument("--gen_lr", default="1e-4", help="generator learning rate")
-    parser.add_argument("--disc_lr", default="8e-4", help="discriminator learning rate")
+    parser.add_argument("--disc_lr", default="4e-4", help="discriminator learning rate")
     parser.add_argument("--epochs", default="10000")
     parser.add_argument("--ag_size", default="216", help="number of artificial genomes (haplotypes) to be created"
                                                          "if 0, then no genomes created")
@@ -36,7 +33,6 @@ def parse_args():
     parser.add_argument("--idir", default="populations")
     parser.add_argument("--odir", default="CGAN_output")
     parser.add_argument("--plot", action="store_true")
-    parser.add_argument("--n_classes", default="2")
     parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
@@ -71,30 +67,35 @@ def main():
     ag_size = int(args.ag_size)
     use_cuda = args.use_cuda
     save_freq = int(args.save_freq)
-    n_classes = int(args.n_classes)
     device = torch.device('cuda' if use_cuda else 'cpu')
 
     ifiles = [x for x in os.listdir(args.idir) if x.endswith(".csv")]
+    n_classes = len(ifiles)
+
     df = pd.DataFrame()
     pop_dict = {}
     for i, file in enumerate(ifiles):
-        pop_dict[i] = file.split(".")[0]
+        pop_dict[file.split(".")[0].split("_")[0]] = i
         population = pd.read_csv(os.path.join(args.idir, file))
-        population["label"] = i
+        population["label"] = file.split(".")[0].split("_")[0]
         df = df.append(population)
 
-    labels = df["label"].astype(int)
-    del df["label"]
-    data_size = df.shape[1]
+    data_size = df.shape[1] - 1
     mask = df.isin([2, 3])
     df = df[~mask]
     df = df.dropna()
     if len(df) > ag_size * 5:
-        df = df.sample(n=ag_size * 5)  # need to test what this multiple should be
+        df = df.sample(n=ag_size * 5) # need to test what this multiple should be
+        df.reset_index(inplace=True)
+        del df["index"]
+        labels = df["label"]
+        del df["label"]
     data = torch.FloatTensor(df.values - np.random.uniform(0, 0.1, size=(df.shape[0], df.shape[1])))
 
     # Read input
-    genomes_data = PopulationsDataset(data, labels.values)
+    data_labels = np.array(list(map(lambda x: pop_dict[x], labels)))
+    reversed_pop_dict = {value: key for (key, value) in pop_dict.items()}
+    genomes_data = PopulationsDataset(data, data_labels)
     dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
 
     # Make generator
@@ -161,13 +162,13 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir, pop_dict,
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict,
                                                   model_type="conditional")
 
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(df, generated_genomes_df, odir, i, pop_dict)
+                    plot_pca(df, i, generated_genomes_df, odir, model_type="conditional", labels=labels)
 
 
 if __name__ == "__main__":
