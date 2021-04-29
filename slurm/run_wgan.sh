@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Launchs job to train Wasserstein GAN
+# Example: slurm/run_wgan.sh wgan_output input_data 100 250
 
 #SBATCH --job-name=AG_training
 #SBATCH --ntasks=1

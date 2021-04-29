@@ -8,11 +8,13 @@ from sklearn.decomposition import PCA
 import pandas as pd
 
 
+# saves models
 def save_models(gen, disc, save_gen_path, save_disc_path):
     torch.save(gen.state_dict(), save_gen_path)
     torch.save(disc.state_dict(), save_disc_path)
 
 
+# plots and records losses for entire training time
 def plot_losses(odir, losses, i):
     fig, ax = plt.subplots()
     plt.plot(np.array([losses]).T[0], label='Discriminator')
@@ -23,6 +25,7 @@ def plot_losses(odir, losses, i):
     plt.close(fig)
 
 
+# plots and records pca comparing real and generated sequences
 def plot_pca(df, i, generated_genomes_df, odir, model_type="normal", labels=None):
 
     if model_type == "conditional":

@@ -53,6 +53,7 @@ def parse_args():
     return args
 
 
+# calculates the gradient_penalty for the loss function
 def gradient_penalty(discriminator, real_batch, fake_batch, _lambda=10):
     t = torch.FloatTensor(real_batch.shape[0], 1).uniform_(0,1)
 
@@ -92,6 +93,7 @@ def main():
 
     device = torch.device('cuda' if use_cuda else 'cpu')
 
+    # The .hapt files are the data taken from the original paper
     if ".hapt" in ifile:
         df = pd.read_csv(ifile, sep=' ', header=None)
         df = df.sample(frac=1).reset_index(drop=True)
@@ -101,16 +103,22 @@ def main():
     else:
         data = pd.read_csv(ifile)
         data_size = data.shape[1]
+
+        # dropping all allele values that are not 0 or 1
         mask = data.isin([2, 3])
         data = data[~mask]
         data = data.dropna()
+
+        # grabbing only a subset of real data otherwise our pca plots are covered with a bunch of data points
         if len(data) > ag_size * 5:
             data = data.sample(n=ag_size * 5)  # need to test what this multiple should be
         data = data.values
     df = pd.DataFrame(data)
+
+    # The original paper did this. Perhaps to add some stochasticity in the input
     data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
 
-    # Read input
+    # Load data into pytorch dataloader
     genomes_data = GenomesDataset(data)
     dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
 
@@ -123,6 +131,7 @@ def main():
 
     losses = []
 
+    # set optimizers
     disc_optimizer = torch.optim.Adam(discriminator.parameters(), lr=d_learn, betas=(beta1, beta2))
     gen_optimizer = torch.optim.Adam(generator.parameters(), lr=g_learn, betas=(beta1, beta2))
 
@@ -132,9 +141,10 @@ def main():
 
     epoch_length = len(iter(dataloader))
 
-    # Training iteration
+    # Loop through each epoch
     for i in range(epochs):
 
+        # Loop through each batch in dataloader
         for j, X_real in enumerate(dataloader):
 
             for p in discriminator.parameters():
@@ -142,32 +152,35 @@ def main():
 
             wasserstein_d = 0
 
+            # WGAN-GP takes multiple critic steps for each generator step
             for h in range(critic_iter):
-
 
                 ### ----------------------------------------------------------------- ###
                 #                           train critic                                #
                 ### ----------------------------------------------------------------- ###
                 disc_optimizer.zero_grad()
-                # train with real images
+
+                # train with real data
                 d_loss_real = discriminator(X_real)
                 d_loss_real = d_loss_real.mean()
                 d_loss_real.backward(neg_one)
 
-                # train with fake images
+                # train with fake data
                 z = Variable(torch.normal(0, 1, size=(batch_size, latent_size))).to(device)
                 X_batch_fake = generator(z).detach().to(device)
                 d_loss_fake = discriminator(X_batch_fake)
                 d_loss_fake = d_loss_fake.mean()
                 d_loss_fake.backward(one)
 
-                # for gradient penalty
+                # calculate gradient penalty
                 g_penalty = gradient_penalty(discriminator, X_real, X_batch_fake)
                 g_penalty.backward()
 
                 # d_loss = d_loss_fake - d_loss_real + g_penalty
 
                 wasserstein_d += d_loss_real - d_loss_fake
+
+                # take optimization step
                 disc_optimizer.step()
 
 
@@ -179,17 +192,24 @@ def main():
             gen_optimizer.zero_grad()
 
             z = Variable(torch.normal(0, 1, size=(batch_size, latent_size))).to(device)
+
+            # create fake batch and test discriminator
             X_batch_fake = generator(z)
             gen_loss = discriminator(X_batch_fake)
+
+            # calculate loss and take update step
             gen_loss = gen_loss.mean()
             gen_loss.backward(neg_one)
             gen_optimizer.step()
 
+            # record performance
             if j % epoch_length - 1 == 0 and j != 0:
                 losses.append((wasserstein_d.mean().item(), gen_loss.item()))
                 logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, wasserstein_d.mean().item(), gen_loss.item()))
 
+        # every save_freq batches
         if save_freq != 0 and (i % save_freq == 1 or i == epochs):
+
             # Save models
             save_models(generator, discriminator, os.path.join(odir, "generator_model.pt"),
                         os.path.join(odir, "discriminator_model.pt"))
@@ -198,6 +218,7 @@ def main():
                 # Create AGs
                 generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
 
+                # plot losses and pca
                 if args.plot:
                     plot_losses(odir, losses, i)
 

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Launches slurm job to train conditional GAN
+# Example: slurm/run_cgan.sh populations populations_output 100
 
 #SBATCH --job-name=CGAN_AG_training
 #SBATCH --ntasks=1

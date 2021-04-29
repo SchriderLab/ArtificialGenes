@@ -3,6 +3,10 @@ import os
 import csv
 import argparse
 
+""" This file takes in a directory of unzipped data (unzipped by simulated_data_extractor.py)
+    and converts it into a single .csv file that can be fed in to the GANs. Use the --length
+    argument to specify how long you want your sequences for training to be. Use the 
+    --break_count argument if you only want to use a certain number of samples for each file """
 
 def parse_args():
 

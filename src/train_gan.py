@@ -71,6 +71,7 @@ def main():
     save_freq = int(args.save_freq)
     device = torch.device('cuda' if use_cuda else 'cpu')
 
+    # The .hapt files are the data taken from the original paper
     if ".hapt" in ifile:
         df = pd.read_csv(ifile, sep=' ', header=None)
         df = df.sample(frac=1).reset_index(drop=True)
@@ -80,16 +81,22 @@ def main():
     else:
         data = pd.read_csv(ifile)
         data_size = data.shape[1]
+
+        # dropping all allele values that are not 0 or 1
         mask = data.isin([2, 3])
         data = data[~mask]
         data = data.dropna()
+
+        # grabbing only a subset of real data otherwise our pca plots are covered with a bunch of data points
         if len(data) > ag_size * 5:
             data = data.sample(n=ag_size * 5)  # need to test what this multiple should be
         data = data.values
     df = pd.DataFrame(data)
+
+    # The original paper did this. Perhaps to add some stochasticity in the input
     data = torch.FloatTensor(data - np.random.uniform(0, 0.1, size=(data.shape[0], data.shape[1])))
 
-    # Read input
+    # Load data into pytorch dataloader
     genomes_data = GenomesDataset(data)
     dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
 
@@ -99,31 +106,30 @@ def main():
     # Make discriminator
     discriminator = Discriminator(data_size, negative_slope)
 
-    # if gpu_count > 1:
-    #     discriminator = multi_gpu_model(discriminator, gpus=gpu_count)
-
-    # losses = deque(maxlen=1000)
     losses = []
-    # batches = len(dataloader)
 
     loss_fn = nn.BCELoss()
+
+    # set optimizers
     gen_optimizer = torch.optim.Adam(generator.parameters(), lr=g_learn)
     disc_optimizer = torch.optim.Adam(discriminator.parameters(), lr=d_learn)
 
-    # Training iteration
+    # Loop through each epoch
     for i in range(epochs):
 
         disc_losses = []
         gen_losses = []
 
+        # Loop through each batch in dataloader
         for j, X_real in enumerate(dataloader):
 
+            # create labels for real and fake data
             ones = Variable(torch.Tensor(batch_size, 1).fill_(1).type(torch.FloatTensor))
             zeros = Variable(torch.Tensor(batch_size, 1).fill_(0).type(torch.FloatTensor))
 
-            # get the batch from real data
+            # create batch from generator using noise as input
             z = torch.normal(0, 1, size=(batch_size, latent_size)).to(device)
-            X_fake = generator(z).detach().to(device)  # create batch from generator using noise as input
+            X_fake = generator(z).detach().to(device)
 
             ### ----------------------------------------------------------------- ###
             #                           train discriminator                       #
@@ -131,9 +137,15 @@ def main():
             discriminator.train()
             disc_optimizer.zero_grad()
             generator.eval()
+
+            # test the discriminator on real data
             real_preds = discriminator(X_real)
             disc_loss = loss_fn(real_preds, ones - torch.FloatTensor(ones.shape[0], ones.shape[1]).uniform_(0, 0.1))
+
+            # test the discriminator on fake data
             fake_preds = discriminator(X_fake)
+
+            # calculate loss and take update step
             disc_loss += loss_fn(fake_preds, zeros)
             disc_loss.backward()
             disc_optimizer.step()
@@ -145,18 +157,27 @@ def main():
             gen_optimizer.zero_grad()
             discriminator.eval()
             z = torch.normal(0, 1, size=(batch_size, latent_size)).to(device)
+
+            # create another fake batch
             X_batch_fake = generator(z)
+
+            # test the discriminator on fake data again
             y_pred = discriminator(X_batch_fake)
+
+            # calculate generator loss and take update step
             gen_loss = loss_fn(y_pred, ones)
             gen_loss.backward()
             gen_optimizer.step()
 
+            # record losses and log performance
             losses.append((disc_loss.item(), gen_loss.item()))
             gen_losses.append(gen_loss.item())
             disc_losses.append(disc_loss.item())
         logging.info("Epoch:\t%d/%d Discriminator loss: %6.4f Generator loss: %6.4f" % (i + 1, epochs, np.mean(disc_losses), np.mean(gen_losses)))
 
+        # every save_freq batches
         if save_freq != 0 and (i % save_freq == 1 or i == epochs):
+
             # Save models
             save_models(generator, discriminator, os.path.join(odir, "generator_model.pt"),
                         os.path.join(odir, "discriminator_model.pt"))
@@ -165,6 +186,7 @@ def main():
                 # Create AGs
                 generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
 
+                # plot losses and pca
                 if args.plot:
                     plot_losses(odir, losses, i)
 

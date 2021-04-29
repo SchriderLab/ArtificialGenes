@@ -1,9 +1,11 @@
-# for simulated data
-
 import pandas as pd
 import os
 import gzip
 import argparse
+
+
+"""This file takes in a directory or single file of generated sequence 
+    data, unzips it, and converts it to .csv files for later processing"""
 
 
 def parse_args():

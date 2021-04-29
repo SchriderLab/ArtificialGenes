@@ -10,7 +10,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--ifile", default="/datacommons/1000genomes/ALL.chr14.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf")
+    parser.add_argument("--chrom_list", default="14", help="list of chromosomes you want to grab data from")
     parser.add_argument("--popfile", default="/datacommons/1000genomes/integrated_call_samples_v3.20130502.ALL.panel", help="File mapping individuals IDs with their respective populations")
     parser.add_argument("--population", default="YRI", help="What population you want to extract")
     parser.add_argument("--break_count", default="None", help="how many samples you want to pull before ending")
@@ -43,84 +43,97 @@ def main():
     key_dataframe = key_dataframe[key_dataframe['pop'] == args.population]
     pop_samples = list(key_dataframe['sample'].values)
     pop_size = len(pop_samples)
+    chrom_list = ["/datacommons/1000genomes/ALL.chr{}.phase3_shapeit2_mvncall_integrated_v5a.20130502.genotypes.vcf".format(chrom)
+        for chrom in args.chrom_list.split(",")]
 
-    keep_columns = []
-    data = {}
-    segregating_site = []
+
+
+    full_data = pd.DataFrame()
     location = []
-    getting_data = False
-    sites_count = 0
-    i = 0
 
-    with open(args.ifile) as csvfile:
-        file_reader = csv.reader(csvfile, delimiter='\t')
-            
-        for line_count, row in enumerate(file_reader):
+    for num, chrom_file in enumerate(chrom_list):
 
-            if not row[0].startswith('#'):
-                if args.consecutive_sites: # pulling based on consecutive sites
-                    if (i % int(args.extract_frequency) == 1 and i != 1) or getting_data == True:
-                        getting_data = True
+        keep_columns = []
+        data = {}
+        segregating_site = []
+        getting_data = False
+        sites_count = 0
+        i = 0
+
+        with open(chrom_file) as csvfile:
+            file_reader = csv.reader(csvfile, delimiter='\t')
+                
+            for line_count, row in enumerate(file_reader):
+
+                if not row[0].startswith('#'):
+                    if args.consecutive_sites: # pulling based on consecutive sites
+                        if (i % int(args.extract_frequency) == 1 and i != 1) or getting_data == True:
+                            getting_data = True
+                            yri_data = [row[elem] for elem in keep_columns]
+                            location.append((num, line_count+1, row[1]))
+                            segregating_site.append(yri_data)     
+                            
+                            if len(segregating_site) == int(args.extract_length):
+                                data["site{}".format(sites_count)] = segregating_site.copy()
+
+                                segregating_site = []
+                                getting_data = False
+                                sites_count += 1
+                                if args.break_count != "None":
+                                    if sites_count > int(args.break_count): # for debugging/getting sample
+                                        break 
+                    else: # pulling based on diversity 
                         yri_data = [row[elem] for elem in keep_columns]
-                        location.append((line_count+1, row[1]))
-                        segregating_site.append(yri_data)     
-                        
+                        has_reference_allele = list(map(has_ones, yri_data))
+                        fraction = has_reference_allele.count(True) / pop_size
+                        if fraction > float(args.threshold) and fraction < 1-float(args.threshold):
+                            location.append((num, line_count+1, row[1]))
+                            segregating_site.append(yri_data)     
+
                         if len(segregating_site) == int(args.extract_length):
                             data["site{}".format(sites_count)] = segregating_site.copy()
 
                             segregating_site = []
-                            getting_data = False
                             sites_count += 1
                             if args.break_count != "None":
                                 if sites_count > int(args.break_count): # for debugging/getting sample
                                     break 
-                else: # pulling based on diversity 
-                    yri_data = [row[elem] for elem in keep_columns]
-                    has_reference_allele = list(map(has_ones, yri_data))
-                    fraction = has_reference_allele.count(True) / pop_size
-                    if fraction > float(args.threshold) and fraction < 1-float(args.threshold):
-                        location.append((line_count+1, row[1]))
-                        segregating_site.append(yri_data)     
+                    i += 1
 
-                    if len(segregating_site) == int(args.extract_length):
-                        data["site{}".format(sites_count)] = segregating_site.copy()
+                if row[0] == ("#CHROM"):
+                    print(len(row))
+                    for j, label in enumerate(row):
+                        if label in pop_samples:
+                            keep_columns.append(j)
 
-                        segregating_site = []
-                        sites_count += 1
-                        if args.break_count != "None":
-                            if sites_count > int(args.break_count): # for debugging/getting sample
-                                break 
-                i += 1
+        full_dataframe_one = pd.DataFrame([])
+        full_dataframe_two = pd.DataFrame([])
 
-            if row[0] == ("#CHROM"):
-                print(len(row))
-                for j, label in enumerate(row):
-                    if label in pop_samples:
-                        keep_columns.append(j)
-
-    full_dataframe_one = pd.DataFrame([])
-    full_dataframe_two = pd.DataFrame([])
-
-    for sequence in data.keys():
-        data_temp = pd.DataFrame(data[sequence])
-        
-        sequence_df_one = pd.DataFrame([])
-        sequence_df_two = pd.DataFrame([])
-        
-        for i, column in enumerate(data_temp.columns):
-            temp = data_temp[column].str.split("|", expand=True)
-            sequence_df_one[args.population+"_{}".format(i)] = temp[0]
-            sequence_df_two[args.population+"_{}".format(i)] = temp[1]
+        for sequence in data.keys():
+            data_temp = pd.DataFrame(data[sequence])
             
-        full_dataframe_one = pd.concat([full_dataframe_one, sequence_df_one], ignore_index=True)
-        full_dataframe_two = pd.concat([full_dataframe_two, sequence_df_two], ignore_index=True)
+            sequence_df_one = pd.DataFrame([])
+            sequence_df_two = pd.DataFrame([])
+            
+            for i, column in enumerate(data_temp.columns):
+                temp = data_temp[column].str.split("|", expand=True)
+                sequence_df_one[args.population+"_{}".format(i)] = temp[0]
+                sequence_df_two[args.population+"_{}".format(i)] = temp[1]
+                
+            full_dataframe_one = pd.concat([full_dataframe_one, sequence_df_one], ignore_index=True)
+            full_dataframe_two = pd.concat([full_dataframe_two, sequence_df_two], ignore_index=True)
 
-    data_one = full_dataframe_one.T.values.reshape(-1, int(args.extract_length))
-    data_two = full_dataframe_two.T.values.reshape(-1, int(args.extract_length))
-    data_one_df = pd.DataFrame(data_one)
-    data_two_df = pd.DataFrame(data_two)
-    pd.concat((data_one_df, data_two_df)).to_csv(os.path.join(args.odir, "full_dataframe.csv"), index=False)
+        data_one = full_dataframe_one.T.values.reshape(-1, int(args.extract_length))
+        data_two = full_dataframe_two.T.values.reshape(-1, int(args.extract_length))
+        data_one_df = pd.DataFrame(data_one)
+        data_two_df = pd.DataFrame(data_two)
+        # pd.concat((data_one_df, data_two_df)).to_csv(os.path.join(args.odir, "full_dataframe.csv"), index=False)
+        full_chrom = pd.concat((data_one_df, data_two_df))
+        full_chrom["chrom"] = args.chrom_list.split(",")[num]
 
+        full_data = pd.concat((full_data, full_chrom))
+
+    full_data.to_csv(os.path.join(args.odir, "chrom_data.csv"), index=False)
     if args.odir != "None":
         with open(os.path.join(args.odir, "locations.txt"), "w") as f:
             f.write(str(location))

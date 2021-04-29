@@ -1,5 +1,3 @@
-# code taken from here: https://gitlab.inria.fr/ml_genetics/public/artificial_genomes/-/blob/master/gan_script5.py
-
 import sys
 import numpy as np
 import tensorflow.keras as keras
@@ -20,8 +18,10 @@ from sklearn.decomposition import PCA
 
 import logging
 
-# in the process of converting everything to pytorch (way easier)
-logging.basicConfig(level=logging.DEBUG)
+### -------------------------- This code is from the original paper -------------------------- ###
+### https://gitlab.inria.fr/ml_genetics/public/artificial_genomes/-/blob/master/gan_script5.py ###
+### ------------------------------------------------------------------------------------------ ###
+
 
 inpt = "1000G_real_genomes/10K_SNP_1000G_real.hapt" #hapt format input file
 latent_size = 6000 #size of noise input

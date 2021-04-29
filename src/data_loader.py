@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 
 
+# for GAN and WGAN
 class GenomesDataset(Dataset):
     def __init__(self, data):
         self.data = data

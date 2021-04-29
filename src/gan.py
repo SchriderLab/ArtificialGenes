@@ -3,6 +3,7 @@ import torch.nn as nn
 import numpy as np
 
 
+# Vanilla Generator used in original paper
 class Generator(nn.Module):
     def __init__(self, data_size, latent_size, negative_slope):
         super(Generator, self).__init__()
@@ -21,6 +22,7 @@ class Generator(nn.Module):
         return self.layers(x)
 
 
+# Vanilla Discriminator used in original paper
 class Discriminator(nn.Module):
     def __init__(self, data_size, negative_slope):
         super(Discriminator, self).__init__()
@@ -39,6 +41,7 @@ class Discriminator(nn.Module):
         return self.layers(x)
 
 
+# not currently used but just a class to hold both models in one
 class GAN(nn.Module):
     def __init__(self, generator, discriminator):
         super(GAN, self).__init__()
@@ -50,6 +53,7 @@ class GAN(nn.Module):
         return self.discriminator(x)
 
 
+# ConditionalGAN Generator
 class ConditionalGenerator(nn.Module):
     def __init__(self, data_size, latent_size, negative_slope, num_classes):
         super(ConditionalGenerator, self).__init__()
@@ -71,6 +75,7 @@ class ConditionalGenerator(nn.Module):
         return self.layers(input_)
 
 
+# ConditionalGAN Discriminator
 class ConditionalDiscriminator(nn.Module):
     def __init__(self, data_size, negative_slope, num_classes):
         super(ConditionalDiscriminator, self).__init__()

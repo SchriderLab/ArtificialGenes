@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Launches slurm job to train the original paper's TF GAN
 
 #SBATCH --job-name=AG_training
 #SBATCH --ntasks=1

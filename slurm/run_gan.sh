@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Launches slurm job to train vanilla GAN
+# Example: slurm/run_gan.sh gan_output plot
 
 #SBATCH --job-name=AG_training
 #SBATCH --ntasks=1
