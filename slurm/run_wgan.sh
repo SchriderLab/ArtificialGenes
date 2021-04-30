@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Launchs job to train Wasserstein GAN
-# Example: slurm/run_wgan.sh wgan_output input_data 100 250
+# Example: slurm/run_wgan.sh input_data wgan_output 200 250
 
 #SBATCH --job-name=AG_training
 #SBATCH --ntasks=1
@@ -17,8 +17,8 @@
 
 unset OMP_NUM_THREADS
 
-ODIR=$1
-IFILE=$2
+IFILE=$1
+ODIR=$2
 SAVE_FREQ=$3
 
 # Set SIMG path

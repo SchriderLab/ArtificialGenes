@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Launches slurm job to train vanilla GAN
-# Example: slurm/run_gan.sh gan_output plot
+# Example: slurm/run_gan.sh input_file gan_output 200
 
 #SBATCH --job-name=AG_training
 #SBATCH --ntasks=1
@@ -17,10 +17,11 @@
 
 unset OMP_NUM_THREADS
 
-ODIR=$1
+IFILE=$1
+ODIR=$2
 
-if [[ "$2" != "" ]]; then
-    SAVE_FREQ="$2"
+if [[ "$3" != "" ]]; then
+    SAVE_FREQ="$3"
 else
     SAVE_FREQ="0"
 fi
@@ -29,10 +30,5 @@ fi
 # Set SIMG path
 SIMG_PATH=/proj/dschridelab/SparseNets/pytorch1.4.0-py3-cuda10.1-ubuntu16.04_production.simg
 
-if [[ "$3" != "" ]]; then
-    echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --verbose --use_cuda
-    singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --verbose --use_cuda
-else
-    echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --plot --verbose --use_cuda
-    singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 src/train_gan.py --odir $ODIR --save_freq $SAVE_FREQ --plot --verbose --use_cuda
-fi
+echo singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 src/train_gan.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --plot --verbose --use_cuda
+singularity exec --nv -B /pine -B /proj $SIMG_PATH python3 src/train_gan.py --odir $ODIR --ifile $IFILE --save_freq $SAVE_FREQ --plot --verbose --use_cuda

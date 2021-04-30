@@ -13,12 +13,12 @@ def parse_args():
     parser.add_argument("--chrom_list", default="14", help="list of chromosomes you want to grab data from")
     parser.add_argument("--popfile", default="/datacommons/1000genomes/integrated_call_samples_v3.20130502.ALL.panel", help="File mapping individuals IDs with their respective populations")
     parser.add_argument("--population", default="YRI", help="What population you want to extract")
-    parser.add_argument("--break_count", default="None", help="how many samples you want to pull before ending")
+    parser.add_argument("--break_count", default="None", help="How many samples you want to pull before ending")
     parser.add_argument("--extract_frequency", default="100000")
-    parser.add_argument("--extract_length", default="1000")
+    parser.add_argument("--extract_length", default="1000", help="How long you want each sample to be")
     parser.add_argument("--odir", default="None")
-    parser.add_argument("--consecutive_sites", action="store_true")
-    parser.add_argument("--threshold", default=".25", help="What minimum percentage of alleles should be alternate?")
+    parser.add_argument("--consecutive_sites", action="store_true", help="Whether you want data to be adjacent")
+    parser.add_argument("--threshold", default=".25", help="What minimum percentage of alleles must be variants")
 
     args = parser.parse_args()
 

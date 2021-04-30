@@ -15,7 +15,7 @@ def parse_args():
     parser.add_argument("--idir", default="/pine/scr/n/i/nickmatt/unzipped_segSite_data")
     parser.add_argument("--ifile", default="None")
     parser.add_argument("--length", default="1000")
-    parser.add_argument("--ofile", default="./simulated_data.csv")
+    parser.add_argument("--ofile", default="simulated_data.csv")
     parser.add_argument("--break_count", default="None")
 
     return parser.parse_args()
