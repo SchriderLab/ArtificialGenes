@@ -190,7 +190,7 @@ def main():
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(df, generated_genomes_df, odir, i)
+                    plot_pca(df, i, generated_genomes_df, odir)
 
 
 if __name__ == "__main__":

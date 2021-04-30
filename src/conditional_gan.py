@@ -182,13 +182,14 @@ def main():
             if ag_size > 0:
                 # Create AGs
                 generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict,
-                                                  model_type="conditional")
+                                                  model_type="conditional", n_classes=n_classes)
 
                 # plot losses and pca
                 if args.plot:
                     plot_losses(odir, losses, i)
 
-                    plot_pca(df, i, generated_genomes_df, odir, model_type="conditional", labels=labels)
+                    plot_pca(df, i, generated_genomes_df, odir, model_type="conditional", labels=labels,
+                             pop_dict=pop_dict, projection="3d")
 
 
 if __name__ == "__main__":

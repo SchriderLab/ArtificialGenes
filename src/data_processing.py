@@ -26,57 +26,67 @@ def plot_losses(odir, losses, i):
 
 
 # plots and records pca comparing real and generated sequences
-def plot_pca(df, i, generated_genomes_df, odir, model_type="normal", labels=None):
+def plot_pca(df, i, generated_genomes_df, odir, model_type="normal", labels=None, pop_dict=None, projection="2d"):
 
-    if model_type == "conditional":
-        pops = ['Real_YRI', 'Real_GBR', 'AG_YRI', 'AG_GBR']
-        colors = ['r', 'b', 'm', 'y']
-    else:
-        pops = ['Real', 'AG']
-        colors = ['r', 'b']
-
+    # copy original data
     df_temp = df.copy()
-    # labels = labels[df_temp.index]
-    # df_test = df_temp.loc[:, ~df.columns.duplicated()]
 
-    df_temp["label"] = labels.map(lambda x: "Real_"+x)
-    # need to change this to separate the different populations in a conditional GAN
-    generated_genomes_df['label'] = generated_genomes_df.loc[:, "label"].map(lambda x: "AG_"+x)
+    # set up data labels for plotting
+    if model_type == "conditional":
+        pop_labels = list(pop_dict.keys())
+        pops = ["Real_" + x for x in pop_labels]
+        pops.extend(["AG_" + x for x in pop_labels])
+        df_temp["label"] = labels.map(lambda x: "Real_" + x)
+        generated_genomes_df['label'] = generated_genomes_df.loc[:, "label"].map(lambda x: "AG_" + x)
+    else:
+        df_temp["label"] = "Real"
+        pops = ['Real', 'AG']
+
+    # append Real and AG data
     df_all_pca = pd.concat([df_temp, generated_genomes_df])
-    pca = PCA(n_components=3)
+
+    # calculate principal components and collect labels
+    n_components = int(projection[0])
+    pca = PCA(n_components=n_components)
     labels = df_all_pca.pop("label").to_list()
     PCs = pca.fit_transform(df_all_pca)
-    PCs_df = pd.DataFrame(data=PCs, columns=["PC1", "PC2", "PC3"])
-    # PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
-    PCs_df['Pop'] = labels
 
     fig = plt.figure(figsize=(10, 10))
-    ax = plt.axes(projection="3d")
 
-    # ax = fig.add_subplot(1, 1, 1)
-    # ax.set_xlabel('PC1')
-    # ax.set_ylabel('PC2')
+    if projection == "2d":
+        PCs_df = pd.DataFrame(data=PCs, columns=['PC1', 'PC2'])
+        ax = fig.add_subplot(1, 1, 1)
+        ax.set_xlabel('PC1')
+        ax.set_ylabel('PC2')
+    else:
+        PCs_df = pd.DataFrame(data=PCs, columns=["PC1", "PC2", "PC3"])
+        ax = plt.axes(projection="3d")
 
+    PCs_df['Pop'] = labels
 
-    for pop, color in zip(pops, colors):
+    # plot data
+    for pop in pops:
         ix = PCs_df['Pop'] == pop
-        ax.scatter3D(PCs_df.loc[ix, 'PC1'], PCs_df.loc[ix, 'PC2'], PCs_df.loc[ix, 'PC3'], c=color, s=50, alpha=0.2)
-        # ax.scatter(PCs_df.loc[ix, 'PC1']
-        #            , PCs_df.loc[ix, 'PC2']
-        #            , c=color
-        #            , s=50, alpha=0.2)
+        if projection == "2d":
+            ax.scatter(PCs_df.loc[ix, 'PC1']
+                       , PCs_df.loc[ix, 'PC2']
+                       , s=50, alpha=0.2)
+        else:
+            ax.scatter3D(PCs_df.loc[ix, 'PC1'], PCs_df.loc[ix, 'PC2'], PCs_df.loc[ix, 'PC3'], s=50, alpha=0.2)
+
     ax.legend(pops)
     fig.savefig(os.path.join(odir, str(i) + '_pca.pdf'), format='pdf')
     plt.cla()
     plt.close(fig)
 
 
-def create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict=None, model_type="normal"):
+def create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict=None, model_type="normal",
+               n_classes=None):
 
     z = torch.normal(0, 1, size=(ag_size, latent_size))
     generator.eval()
     if model_type == "conditional":
-        classes = torch.randint(0, 2, (ag_size,))
+        classes = torch.randint(0, n_classes, (ag_size,))
         generated_genomes = generator(z, classes).detach().numpy()
     else:
         generated_genomes = generator(z).detach().numpy()
@@ -89,6 +99,8 @@ def create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict=N
     if model_type == "conditional":
         generated_genomes_df["label"] = classes.numpy()
         generated_genomes_df["label"] = generated_genomes_df["label"].map(lambda x: reversed_pop_dict[x])
+    else:
+        generated_genomes_df["label"] = "AG"
     df.columns = list(range(df.shape[1]))
 
     generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
