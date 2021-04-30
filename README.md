@@ -1,7 +1,7 @@
 # ArtificialGenes
-* This repository contains code for using generative deep learning to create sequences of artificial DNA *
+* This repository contains code for using generative deep learning to create sequences of artificial DNA
 
-The work in this repository is expanding on the work in the paper below and reuses some code:
+* The work in this repository is expanding on the work in the paper below and reuses some code:
    https://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1009303
 
 To run the original vanilla GAN from that paper:
