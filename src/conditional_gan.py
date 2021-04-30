@@ -79,6 +79,11 @@ def main():
     for i, file in enumerate(ifiles):
         pop_dict[file.split(".")[0].split("_")[0]] = i
         population = pd.read_csv(os.path.join(args.idir, file))
+
+        # if the first column is "Unnamed: 0", or something besides the data, delete it
+        first_row = population.columns.values[0]
+        if first_row != "0":
+            del population[population.columns[0]]
         population["label"] = file.split(".")[0].split("_")[0]
         df = df.append(population)
 
@@ -94,8 +99,9 @@ def main():
         df = df.sample(n=ag_size * 5) # need to test what this multiple should be
         df.reset_index(inplace=True)
         del df["index"]
-        labels = df["label"]
-        del df["label"]
+
+    labels = df["label"]
+    del df["label"]
 
     # The original paper did this. Perhaps to add some stochasticity in the input
     data = torch.FloatTensor(df.values - np.random.uniform(0, 0.1, size=(df.shape[0], df.shape[1])))
