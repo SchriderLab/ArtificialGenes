@@ -69,8 +69,10 @@ class ConditionalGenerator(nn.Module):
             nn.Tanh()
         )
 
-    def forward(self, x, labels):
-        labels = torch.tensor(np.eye(self.num_classes)[labels.numpy().reshape(-1)], dtype=torch.float)
+    def forward(self, x, labels, use_cuda=False, device=None):
+        labels = torch.tensor(np.eye(self.num_classes)[labels.cpu().numpy().reshape(-1)], dtype=torch.float)
+        if use_cuda:
+            labels = labels.to(device)
         input_ = torch.cat((x, labels), 1)
         return self.layers(input_)
 
@@ -92,8 +94,10 @@ class ConditionalDiscriminator(nn.Module):
         )
 
     # pass example and one-hot encoded label
-    def forward(self, x, labels):
-        labels = torch.tensor(np.eye(self.num_classes)[labels.numpy().reshape(-1)], dtype=torch.float)
+    def forward(self, x, labels, use_cuda=False, device=None):
+        labels = torch.tensor(np.eye(self.num_classes)[labels.cpu().numpy().reshape(-1)], dtype=torch.float)
+        if use_cuda:
+            labels = labels.to(device)
         input_ = torch.cat((x, labels), 1)
         return self.layers(input_)
 

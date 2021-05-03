@@ -81,15 +81,19 @@ def plot_pca(df, i, generated_genomes_df, odir, model_type="normal", labels=None
 
 
 def create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict=None, model_type="normal",
-               n_classes=None):
+               n_classes=None, use_cuda=False, device=None):
 
-    z = torch.normal(0, 1, size=(ag_size, latent_size))
+    z = torch.normal(0, 1, size=(ag_size, latent_size)).to(device)
     generator.eval()
     if model_type == "conditional":
-        classes = torch.randint(0, n_classes, (ag_size,))
-        generated_genomes = generator(z, classes).detach().numpy()
+        classes = torch.randint(0, n_classes, (ag_size,)).to(device)
+        if use_cuda:
+            generated_genomes = generator(z, classes, use_cuda, device)
+        else:
+            generated_genomes = generator(z, classes)
+        generated_genomes = generated_genomes.detach().cpu().numpy()
     else:
-        generated_genomes = generator(z).detach().numpy()
+        generated_genomes = generator(z).detach().cpu().numpy()
     generated_genomes[generated_genomes < 0] = 0
     generated_genomes = np.rint(generated_genomes)
     generated_genomes_df = pd.DataFrame(generated_genomes)
@@ -97,7 +101,7 @@ def create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict=N
     generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
 
     if model_type == "conditional":
-        generated_genomes_df["label"] = classes.numpy()
+        generated_genomes_df["label"] = classes.detach().cpu().numpy()
         generated_genomes_df["label"] = generated_genomes_df["label"].map(lambda x: reversed_pop_dict[x])
     else:
         generated_genomes_df["label"] = "AG"

@@ -54,8 +54,8 @@ def parse_args():
 
 
 # calculates the gradient_penalty for the loss function
-def gradient_penalty(discriminator, real_batch, fake_batch, _lambda=10):
-    t = torch.FloatTensor(real_batch.shape[0], 1).uniform_(0,1)
+def gradient_penalty(discriminator, real_batch, fake_batch, device, _lambda=10):
+    t = torch.FloatTensor(real_batch.shape[0], 1).uniform_(0,1).to(device)
 
     interpolated = t * real_batch + ((1-t) * fake_batch)
     # define as variable to calculate gradient
@@ -66,7 +66,7 @@ def gradient_penalty(discriminator, real_batch, fake_batch, _lambda=10):
 
     # calculate gradients
     gradients = autograd.grad(outputs=prob_interpolated, inputs=interpolated,
-                              grad_outputs=torch.ones(prob_interpolated.size()),
+                              grad_outputs=torch.ones(prob_interpolated.size()).to(device),
                               create_graph=True, retain_graph=True)[0]
     grad_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean() * _lambda
     return grad_penalty
@@ -124,10 +124,10 @@ def main():
 
 
     # Make generator
-    generator = Generator(data_size, latent_size, negative_slope).to(device) #
+    generator = Generator(data_size, latent_size, negative_slope).to(device)
 
     # Make discriminator
-    discriminator = Discriminator(data_size, negative_slope).to(device) #
+    discriminator = Discriminator(data_size, negative_slope).to(device)
 
     losses = []
 
@@ -146,6 +146,8 @@ def main():
 
         # Loop through each batch in dataloader
         for j, X_real in enumerate(dataloader):
+
+            X_real = X_real.to(device)
 
             for p in discriminator.parameters():
                 p.requires_grad = True
@@ -167,13 +169,13 @@ def main():
 
                 # train with fake data
                 z = Variable(torch.normal(0, 1, size=(batch_size, latent_size))).to(device)
-                X_batch_fake = generator(z).detach().to(device)
+                X_batch_fake = generator(z).detach()
                 d_loss_fake = discriminator(X_batch_fake)
                 d_loss_fake = d_loss_fake.mean()
                 d_loss_fake.backward(one)
 
                 # calculate gradient penalty
-                g_penalty = gradient_penalty(discriminator, X_real, X_batch_fake)
+                g_penalty = gradient_penalty(discriminator, X_real, X_batch_fake, device)
                 g_penalty.backward()
 
                 # d_loss = d_loss_fake - d_loss_real + g_penalty
@@ -216,7 +218,8 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir, use_cuda=use_cuda,
+                                                  device=device)
 
                 # plot losses and pca
                 if args.plot:

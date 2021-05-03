@@ -101,10 +101,10 @@ def main():
     dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
 
     # Make generator
-    generator = Generator(data_size, latent_size, negative_slope)
+    generator = Generator(data_size, latent_size, negative_slope).to(device)
 
     # Make discriminator
-    discriminator = Discriminator(data_size, negative_slope)
+    discriminator = Discriminator(data_size, negative_slope).to(device)
 
     losses = []
 
@@ -123,13 +123,16 @@ def main():
         # Loop through each batch in dataloader
         for j, X_real in enumerate(dataloader):
 
+            # move to gpu
+            X_real = X_real.to(device)
+
             # create labels for real and fake data
-            ones = Variable(torch.Tensor(batch_size, 1).fill_(1).type(torch.FloatTensor))
-            zeros = Variable(torch.Tensor(batch_size, 1).fill_(0).type(torch.FloatTensor))
+            ones = Variable(torch.Tensor(batch_size, 1).fill_(1).type(torch.FloatTensor)).to(device)
+            zeros = Variable(torch.Tensor(batch_size, 1).fill_(0).type(torch.FloatTensor)).to(device)
 
             # create batch from generator using noise as input
             z = torch.normal(0, 1, size=(batch_size, latent_size)).to(device)
-            X_fake = generator(z).detach().to(device)
+            X_fake = generator(z).detach()
 
             ### ----------------------------------------------------------------- ###
             #                           train discriminator                       #
@@ -140,7 +143,8 @@ def main():
 
             # test the discriminator on real data
             real_preds = discriminator(X_real)
-            disc_loss = loss_fn(real_preds, ones - torch.FloatTensor(ones.shape[0], ones.shape[1]).uniform_(0, 0.1))
+            disc_loss = loss_fn(real_preds, ones -
+                                torch.FloatTensor(ones.shape[0], ones.shape[1]).uniform_(0, 0.1).to(device))
 
             # test the discriminator on fake data
             fake_preds = discriminator(X_fake)
@@ -162,7 +166,7 @@ def main():
             X_batch_fake = generator(z)
 
             # test the discriminator on fake data again
-            y_pred = discriminator(X_batch_fake)
+            y_pred = discriminator(X_batch_fake).to(device)
 
             # calculate generator loss and take update step
             gen_loss = loss_fn(y_pred, ones)
@@ -184,7 +188,8 @@ def main():
 
             if ag_size > 0:
                 # Create AGs
-                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir)
+                generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir, use_cuda=use_cuda,
+                                                  device=device)
 
                 # plot losses and pca
                 if args.plot:

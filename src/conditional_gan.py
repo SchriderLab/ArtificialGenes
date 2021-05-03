@@ -79,6 +79,7 @@ def main():
     for i, file in enumerate(ifiles):
         pop_dict[file.split(".")[0].split("_")[0]] = i
         population = pd.read_csv(os.path.join(args.idir, file))
+        population.columns = range(len(population.columns))
 
         # if the first column is "Unnamed: 0", or something besides the data, delete it
         first_row = population.columns.values[0]
@@ -113,10 +114,10 @@ def main():
     dataloader = DataLoader(dataset=genomes_data, batch_size=batch_size, shuffle=True, drop_last=True)
 
     # Make generator
-    generator = ConditionalGenerator(data_size, latent_size, negative_slope, n_classes)
+    generator = ConditionalGenerator(data_size, latent_size, negative_slope, n_classes).to(device)
 
     # Make discriminator
-    discriminator = ConditionalDiscriminator(data_size, negative_slope, n_classes)
+    discriminator = ConditionalDiscriminator(data_size, negative_slope, n_classes).to(device)
 
     losses = []
 
@@ -132,9 +133,13 @@ def main():
         # Loop through each batch in dataloader
         for j, (X_real, y_real) in enumerate(dataloader):
 
+            # move to GPU
+            X_real = X_real.to(device)
+            y_real = y_real.to(device)
+
             # create labels for real and fake data
-            real = Variable(torch.FloatTensor(batch_size, 1).fill_(1.0))
-            fake = Variable(torch.FloatTensor(batch_size, 1).fill_(0.0))
+            real = Variable(torch.FloatTensor(batch_size, 1).fill_(1.0)).to(device)
+            fake = Variable(torch.FloatTensor(batch_size, 1).fill_(0.0)).to(device)
 
             ### ----------------------------------------------------------------- ###
             #                           train generator                           #
@@ -146,10 +151,10 @@ def main():
             gen_labels = Variable(torch.LongTensor(np.random.randint(0, n_classes, batch_size)))
 
             # generate artificial samples
-            X_batch_fake = generator(z, gen_labels)
+            X_batch_fake = generator(z, gen_labels, use_cuda, device)
 
             # test discriminator
-            y_pred = discriminator(X_batch_fake, gen_labels)
+            y_pred = discriminator(X_batch_fake, gen_labels, use_cuda, device).to(device)
 
             # calculate loss and take update step
             gen_loss = loss_fn(y_pred, real)
@@ -162,11 +167,12 @@ def main():
             disc_optimizer.zero_grad()
 
             # train discriminator on real data
-            real_preds = discriminator(X_real, y_real)
-            disc_real_loss = loss_fn(real_preds, real - torch.FloatTensor(real.shape[0], real.shape[1]).uniform_(0, 0.1))
+            real_preds = discriminator(X_real, y_real, use_cuda, device).to(device)
+            disc_real_loss = loss_fn(real_preds, real -
+                                     torch.FloatTensor(real.shape[0], real.shape[1]).uniform_(0, 0.1).to(device))
 
             # train discriminator on generated data
-            fake_preds = discriminator(X_batch_fake.detach(), gen_labels)
+            fake_preds = discriminator(X_batch_fake.detach(), gen_labels, use_cuda, device).to(device)
             disc_fake_loss = loss_fn(fake_preds, fake)
 
             # calculate total loss and take update step
@@ -188,7 +194,8 @@ def main():
             if ag_size > 0:
                 # Create AGs
                 generated_genomes_df = create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict,
-                                                  model_type="conditional", n_classes=n_classes)
+                                                  model_type="conditional", n_classes=n_classes, use_cuda=use_cuda,
+                                                  device=device)
 
                 # plot losses and pca
                 if args.plot:
