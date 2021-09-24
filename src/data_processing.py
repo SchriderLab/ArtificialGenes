@@ -6,6 +6,7 @@ import numpy as np
 import os
 from sklearn.decomposition import PCA
 import pandas as pd
+from torchvision.utils import make_grid, save_image
 
 
 # saves models
@@ -19,9 +20,13 @@ def plot_losses(odir, losses, i):
     fig, ax = plt.subplots()
     plt.plot(np.array([losses]).T[0], label='Discriminator')
     plt.plot(np.array([losses]).T[1], label='Generator')
+    plt.plot(np.array([losses]).T[2], label='D_loss_real')
+    plt.plot(np.array([losses]).T[3], label='D_loss_fake')
+    plt.plot(np.array([losses]).T[4], label='Gradient_Penalty')
+    
     plt.title("Training Losses")
     plt.legend()
-    fig.savefig(os.path.join(odir, str(i) + '_loss.pdf'), format='pdf')
+    fig.savefig(os.path.join(odir, str(i) + '_loss.png'), format='png')
     plt.close(fig)
 
 
@@ -80,33 +85,57 @@ def plot_pca(df, i, generated_genomes_df, odir, model_type="normal", labels=None
     plt.close(fig)
 
 
-def create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict=None, model_type="normal",
-               n_classes=None, use_cuda=False, device=None):
+def create_AGs(generator, i, ag_size, latent_size, data_size, odir, device):
 
-    z = torch.normal(0, 1, size=(ag_size, latent_size)).to(device)
+    z = torch.randn(ag_size, latent_size, 1, 1, device=device)
     generator.eval()
-    if model_type == "conditional":
-        classes = torch.randint(0, n_classes, (ag_size,)).to(device)
-        if use_cuda:
-            generated_genomes = generator(z, classes, use_cuda, device)
-        else:
-            generated_genomes = generator(z, classes)
-        generated_genomes = generated_genomes.detach().cpu().numpy()
-    else:
-        generated_genomes = generator(z).detach().cpu().numpy()
+
+    generated_genomes = generator(z).detach().cpu().numpy()
     generated_genomes[generated_genomes < 0] = 0
     generated_genomes = np.rint(generated_genomes)
-    generated_genomes_df = pd.DataFrame(generated_genomes)
-    generated_genomes_df = generated_genomes_df.astype(int)
-    generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
+    #generated_genomes_df = pd.DataFrame(generated_genomes)
+    #generated_genomes = generated_genomes.astype(int)
+    generated_genomes_3d = np.reshape(generated_genomes,(ag_size,data_size,data_size))
+    #generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
+    generated_genomes_imgs = save_image(torch.tensor(generated_genomes), os.path.join(odir, str(i) + "_output.png"))
+#    if model_type == "conditional":
+#        generated_genomes_df["label"] = classes.detach().cpu().numpy()
+#        generated_genomes_df["label"] = generated_genomes_df["label"].map(lambda x: reversed_pop_dict[x])
+#    else:
+#        generated_genomes_df["label"] = "AG"
+#    df.columns = list(range(df.shape[1]))
+#
+    #generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
+#
+    return generated_genomes_imgs
 
-    if model_type == "conditional":
-        generated_genomes_df["label"] = classes.detach().cpu().numpy()
-        generated_genomes_df["label"] = generated_genomes_df["label"].map(lambda x: reversed_pop_dict[x])
-    else:
-        generated_genomes_df["label"] = "AG"
-    df.columns = list(range(df.shape[1]))
-
-    generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
-
-    return generated_genomes_df
+# def create_AGs(generator, i, ag_size, latent_size, df, odir, reversed_pop_dict=None, model_type="normal",
+#               n_classes=None, use_cuda=False, device=None):
+#
+#    z = torch.normal(0, 1, size=(ag_size, latent_size)).to(device)
+#    generator.eval()
+#    if model_type == "conditional":
+#        classes = torch.randint(0, n_classes, (ag_size,)).to(device)
+#        if use_cuda:
+#           generated_genomes = generator(z, classes, use_cuda, device)
+#        else:
+#            generated_genomes = generator(z, classes)
+#        generated_genomes = generated_genomes.detach().cpu().numpy()
+#    else:
+#        generated_genomes = generator(z).detach().cpu().numpy()
+#    generated_genomes[generated_genomes < 0] = 0
+#    generated_genomes = np.rint(generated_genomes)
+#    generated_genomes_df = pd.DataFrame(generated_genomes)
+#    generated_genomes_df = generated_genomes_df.astype(int)
+#    generated_genomes_df.columns = list(range(generated_genomes_df.shape[1]))
+#
+#    if model_type == "conditional":
+#        generated_genomes_df["label"] = classes.detach().cpu().numpy()
+#        generated_genomes_df["label"] = generated_genomes_df["label"].map(lambda x: reversed_pop_dict[x])
+#    else:
+#        generated_genomes_df["label"] = "AG"
+#    df.columns = list(range(df.shape[1]))
+#
+#    generated_genomes_df.to_csv(os.path.join(odir, str(i) + "_output.hapt"), sep=" ", header=False, index=False)
+#
+#    return generated_genomes_df
